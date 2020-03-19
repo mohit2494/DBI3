@@ -1,8 +1,8 @@
 #include "File.h"
 #include "TwoWayList.cc"
-
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
 #include <iostream>
@@ -108,7 +108,6 @@ void Page :: FromBinary (char *bits) {
 
 	// first read the number of records on the page
 	numRecs = ((int *) bits)[0];
-	//subi //cerr << " numRecs in page " << numRecs << endl;
 
 	// sanity check
 	if (numRecs > 1000000 || numRecs < 0) {
@@ -155,6 +154,10 @@ void Page :: FromBinary (char *bits) {
 	delete temp;
 }
 
+int Page :: getNumRecs() {
+	return this->numRecs;
+}
+
 File :: File () {
 }
 
@@ -163,10 +166,10 @@ File :: ~File () {
 
 
 void File :: GetPage (Page *putItHere, off_t whichPage) {
+//	cout<<"Reading Page"<<" Which Page: "<<whichPage<<" Cur Length : "<<curLength<<endl;
 
 	// this is because the first page has no data
 	whichPage++;
-	//subi// cerr << "get_pg " << whichPage << " file_sz " << curLength << endl;
 
 	if (whichPage >= curLength) {
 		cerr << "whichPage " << whichPage << " length " << curLength << endl;
@@ -191,7 +194,7 @@ void File :: GetPage (Page *putItHere, off_t whichPage) {
 
 
 void File :: AddPage (Page *addMe, off_t whichPage) {
-
+//	cout<<"Writing Page"<<" Which Page: "<<whichPage<<" Cur Length : "<<curLength<<endl;
 	// this is because the first page has no data
 	whichPage++;
 
@@ -226,7 +229,6 @@ void File :: AddPage (Page *addMe, off_t whichPage) {
 	cerr << " File: curLength " << curLength << " whichPage " << whichPage << endl;
 #endif
 }
-
 
 void File :: Open (int fileLen, char *fName) {
 
@@ -268,6 +270,18 @@ off_t File :: GetLength () {
 	return curLength;
 }
 
+int File :: IsFileOpen () {
+    if (myFilDes>0){
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
+void File :: MoveToFirst () {
+    lseek (myFilDes, 0, SEEK_SET);
+}
 
 int File :: Close () {
 
@@ -282,5 +296,3 @@ int File :: Close () {
 	return curLength;
 	
 }
-
-

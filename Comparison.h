@@ -6,7 +6,7 @@
 #include "File.h"
 #include "Comparison.h"
 #include "ComparisonEngine.h"
-#include <stdlib.h>
+
 
 // This stores an individual comparison that is part of a CNF
 class Comparison {
@@ -43,13 +43,12 @@ class OrderMaker {
 	friend class ComparisonEngine;
 	friend class CNF;
 
-public:
-
 	int numAtts;
 
 	int whichAtts[MAX_ANDS];
 	Type whichTypes[MAX_ANDS];
 
+public:
 	
 
 	// creates an empty OrdermMaker
@@ -85,20 +84,24 @@ public:
 	// only if it is impossible to determine an acceptable ordering
 	// for the given comparison
 	int GetSortOrders (OrderMaker &left, OrderMaker &right);
+    int GetSortOrdersCopy (OrderMaker &left, OrderMaker &right);
 
 	// print the comparison structure to the screen
 	void Print ();
 
-        // this takes a parse tree for a CNF and converts it into a 2-D
-        // matrix storing the same CNF expression.  This function is applicable
-        // specifically to the case where there are two relations involved
-        void GrowFromParseTree (struct AndList *parseTree, Schema *leftSchema, 
-		Schema *rightSchema, Record &literal);
+    // this takes a parse tree for a CNF and converts it into a 2-D
+    // matrix storing the same CNF expression.  This function is applicable
+    // specifically to the case where there are two relations involved
+    void GrowFromParseTree (struct AndList *parseTree, Schema *leftSchema,
+    Schema *rightSchema, Record &literal);
 
-        // version of the same function, except that it is used in the case of
-        // a relational selection over a single relation so only one schema is used
-        void GrowFromParseTree (struct AndList *parseTree, Schema *mySchema, 
-		Record &literal);
+    // version of the same function, except that it is used in the case of
+    // a relational selection over a single relation so only one schema is used
+    void GrowFromParseTree (struct AndList *parseTree, Schema *mySchema,
+    Record &literal);
+    
+    OrderMaker* GetQueryOrderMaker(OrderMaker &srtorder);
+
 
 };
 
