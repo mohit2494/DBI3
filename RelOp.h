@@ -107,6 +107,8 @@ class Sum : public RelationalOp {
 	void Run (Pipe &inPipe, Pipe &outPipe, Function &computeMe);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
+	static void* caller(void*);
+	void *operation();
 };
 
 //-------------------------------------------------------------------------------------

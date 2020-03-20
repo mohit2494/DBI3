@@ -138,13 +138,43 @@ void DuplicateRemoval::Use_n_Pages (int n) {
 
 //------------------------------------------------------------------------------------------------
 void Sum::Run (Pipe &inPipe, Pipe &outPipe, Function &computeMe) { 
-
+	this->inPipe = &inPipe;
+	this->outPipe = &outPipe;
+	this->computeMe = &computeMe;
+	pthread_create(&this->thread, NULL, caller, (void *)this);
 }
+
 void Sum::WaitUntilDone () { 
 	pthread_join (thread, NULL);
 }
-void Sum::Use_n_Pages (int n) { 
 
+void Sum::Use_n_Pages (int n) { 
+	// not using bigq
+	return;
+}
+
+void* Sum::caller(void *args) {
+	((Sum*)args)->operation();
+}
+
+// function is called by the thread
+void* Sum::operation() {
+	Record t; Record rec; Type rt;
+	int si = 0; double sd = 0.0f;
+
+	while(inPipe->Remove(&rec)) {
+		int ti = 0; double td = 0.0f;
+		rt = this->computeMe->Apply(rec, ti, td);
+		rt == Int ? si += ti : sd += td;
+	}
+
+	char result[30];
+	if (rt == Int) sprintf(result, "%d|", si); else sprintf(result, "%f|", sd);
+	Type myType = (rt==Int)?Int:Double;
+	Attribute sum = {(char *)"sum",myType};
+	Schema os("something",1,&sum);
+	t.ComposeRecord(&os,result);
+	outPipe->Insert(&t);outPipe->ShutDown();
 }
 
 //------------------------------------------------------------------------------------------------
