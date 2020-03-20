@@ -91,7 +91,7 @@ void init_SF_c (char *pred_str, int numpgs) {
 }
 
 // select * from partsupp where ps_supplycost <1.03 
-// expected output: 31 records
+// expected output: 21 records
 void q1 () {
 
 	char *pred_ps = "(ps_supplycost < 1.03)";
@@ -115,10 +115,10 @@ void q2 () {
 	init_SF_p (pred_p, 100);
 
 	Project P_p;
-		Pipe _out (pipesz);
-		int keepMe[] = {0,1,7};
-		int numAttsIn = pAtts;
-		int numAttsOut = 3;
+	Pipe _out (pipesz);
+	int keepMe[] = {0,1,7};
+	int numAttsIn = pAtts;
+	int numAttsOut = 3;
 	P_p.Use_n_Pages (buffsz);
 
 	SF_p.Run (dbf_p, _p, cnf_p, lit_p);
@@ -129,7 +129,7 @@ void q2 () {
 
 	Attribute att3[] = {IA, SA, DA};
 	Schema out_sch ("out_sch", numAttsOut, att3);
-	int cnt = clear_pipe (_p, p->schema (), true);
+	int cnt = clear_pipe (_out, &out_sch, true);
 
 	cout << "\n\n query2 returned " << cnt << " records \n";
 

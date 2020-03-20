@@ -6,7 +6,9 @@
 #include "Record.h"
 #include "Function.h"
 
+//-------------------------------------------------------------------------------------
 class RelationalOp {
+
 	public:
 	// blocks the caller until the particular relational operator 
 	// has run to completion
@@ -16,57 +18,118 @@ class RelationalOp {
 	virtual void Use_n_Pages (int n) = 0;
 };
 
+//-------------------------------------------------------------------------------------
 class SelectFile : public RelationalOp { 
-
 	private:
-	// pthread_t thread;
-	// Record *buffer;
-
+	pthread_t thread;
+	Record *literal;
+	DBFile *inFile;
+	Pipe *outPipe;
+	CNF *selOp;
 	public:
-
 	void Run (DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
-
+	// why static - https://stackoverflow.com/questions/1151582/pthread-function-from-a-class
+	static void* caller(void*);
+	void *operation();
 };
 
+//-------------------------------------------------------------------------------------
 class SelectPipe : public RelationalOp {
+	private:
+	pthread_t thread;
+	Pipe *inPipe;
+	Pipe *outPipe;
+	CNF *selOp;
+	Record *literal;
 	public:
 	void Run (Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
+	static void* caller(void*);
+	void *operation();
 };
+
+//-------------------------------------------------------------------------------------
 class Project : public RelationalOp { 
+	private:
+	pthread_t thread;
+	Pipe *inPipe;
+	Pipe *outPipe;
+	int *keepMe;
+	int numAttsInput;
+	int numAttsOutput;
 	public:
 	void Run (Pipe &inPipe, Pipe &outPipe, int *keepMe, int numAttsInput, int numAttsOutput);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
+	static void* caller(void*);
+	void *operation();
 };
-class Join : public RelationalOp { 
+
+//-------------------------------------------------------------------------------------
+class Join : public RelationalOp {
+	private:
+	pthread_t thread;
+	Pipe *inPipeL;
+	Pipe *inPipeR;
+	Pipe *outPipe;
+	CNF *selOp;
+	Record *literal;
 	public:
 	void Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
 };
+
+//-------------------------------------------------------------------------------------
 class DuplicateRemoval : public RelationalOp {
+	private:
+	pthread_t thread;
+	Pipe *inPipe;
+	Pipe *outPipe;
+	Schema *mySchema;
 	public:
 	void Run (Pipe &inPipe, Pipe &outPipe, Schema &mySchema);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
 };
+
+//-------------------------------------------------------------------------------------
 class Sum : public RelationalOp {
+	private:
+	pthread_t thread;
+	Pipe *inPipe;
+	Pipe *outPipe;
+	Function *computeMe;
 	public:
 	void Run (Pipe &inPipe, Pipe &outPipe, Function &computeMe);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
 };
+
+//-------------------------------------------------------------------------------------
 class GroupBy : public RelationalOp {
+	private:
+	pthread_t thread;
+	Pipe *inPipe;
+	Pipe *outPipe;
+	OrderMaker *groupAtts;
+	Function *computeMe;
 	public:
 	void Run (Pipe &inPipe, Pipe &outPipe, OrderMaker &groupAtts, Function &computeMe);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
 };
+
+//-------------------------------------------------------------------------------------
 class WriteOut : public RelationalOp {
+	private:
+	pthread_t thread;
+	Pipe *inPipe;
+	File *outFile;
+	Schema *mySchema;
 	public:
 	void Run (Pipe &inPipe, FILE *outFile, Schema &mySchema);
 	void WaitUntilDone ();

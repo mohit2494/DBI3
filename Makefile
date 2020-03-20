@@ -87,6 +87,4 @@ clean:
 	rm -f yyfunc.tab.*
 	rm -f lex.yy.*
 	rm -f lex.yyfunc*
-	rm -rf dbfiles
-	mkdir -p dbfiles
 
