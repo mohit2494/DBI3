@@ -47,21 +47,21 @@ class run {
         run(int runLength);
         run(int runLength,OrderMaker * sortorder);
         void AddPage();
-//      function to add page
+        //      function to add page
         void AddPage(Page *p);
-//      function to add record to the page.
+        //      function to add record to the page.
         int addRecordAtPage(long long int pageCount, Record *rec);
-//      function to check if the run if full.
+        //      function to check if the run if full.
         bool checkRunFull();
-//      function to empty the if the run if full.
+        //      function to empty the if the run if full.
         bool clearPages();
-//      function to get runSize.
+        //      function to get runSize.
         int getRunSize();
         vector<Page*> getPages();
-//      function to getPages For Priority Queue.
+        //      function to getPages For Priority Queue.
         void getPages(vector<Page*> * pagevector);
         bool customRecordComparator(Record &left, Record &right);
-//      function to writeRun to File after Sorting.
+        //      function to writeRun to File after Sorting.
         int writeRunToFile(File *file);
 };
 // ------------------------------------------------------------------
@@ -74,11 +74,10 @@ class CustomComparator{
     OrderMaker * myOrderMaker;
 public:
     CustomComparator(OrderMaker * sortorder);
-//  Custom Funtion for sorting vector of records
+    //  Custom Funtion for sorting vector of records
     bool operator()( Record* lhs,   Record* rhs);
-//  Custom Funtion for sorting in priority queue.
+    //  Custom Funtion for sorting in priority queue.
     bool operator()(QueueObject lhs,  QueueObject rhs);
-
 };
 // ------------------------------------------------------------------
 

@@ -19,10 +19,11 @@ void BigQ :: Phase1()
     long long int runCount=1;
     tRun.AddPage();
     bool diff = false;
-
+    int cnt=0;
     // read data from in pipe sort them into runlen pages
 
     while(this->myThreadData.in->Remove(&tRec)) {
+        cnt++;
         if(!tRun.addRecordAtPage(pageCount, &tRec)) {
             if (tRun.checkRunFull()) {
                 sortCompleteRun(&tRun, this->myThreadData.sortorder);
@@ -53,11 +54,13 @@ void BigQ :: Phase1()
     }
     this->f_path = "temp.xbin";
     this->totalRuns = runCount;
+    cerr << "BigQ Read : " << cnt << endl;
 }
 
 // sort runs from file using Run Manager
 void BigQ :: Phase2()
 {
+    int cnt=0;
     RunManager runManager(this->myThreadData.runlen,this->f_path);
     myTree = new TournamentTree(&runManager,this->myThreadData.sortorder);
     Page * tempPage;
@@ -65,9 +68,11 @@ void BigQ :: Phase2()
         Record tempRecord;
         while(tempPage->GetFirst(&tempRecord)){
             this->myThreadData.out->Insert(&tempRecord);
+            cnt++;
         }
         myTree->RefillOutputBuffer();
     }
+    cout << "BigQ Write : " << cnt << endl;
 }
 
 void BigQ::sortCompleteRun(run *run, OrderMaker *sortorder) {

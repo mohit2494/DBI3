@@ -90,10 +90,13 @@ class DuplicateRemoval : public RelationalOp {
 	Pipe *inPipe;
 	Pipe *outPipe;
 	Schema *mySchema;
+	int runlength;
 	public:
 	void Run (Pipe &inPipe, Pipe &outPipe, Schema &mySchema);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
+	static void* caller(void*);
+	void *operation();
 };
 
 //-------------------------------------------------------------------------------------
@@ -123,6 +126,8 @@ class GroupBy : public RelationalOp {
 	void Run (Pipe &inPipe, Pipe &outPipe, OrderMaker &groupAtts, Function &computeMe);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
+	static void* caller(void*);
+	void *operation();
 };
 
 //-------------------------------------------------------------------------------------
@@ -130,11 +135,13 @@ class WriteOut : public RelationalOp {
 	private:
 	pthread_t thread;
 	Pipe *inPipe;
-	File *outFile;
+	FILE *outFile;
 	Schema *mySchema;
 	public:
 	void Run (Pipe &inPipe, FILE *outFile, Schema &mySchema);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
+	static void* caller(void*);
+	void *operation();
 };
 #endif

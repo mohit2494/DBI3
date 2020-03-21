@@ -222,21 +222,21 @@ void q5 () {
 	init_SF_ps (pred_ps, 100);
 
 	Project P_ps;
-		Pipe __ps (pipesz);
-		int keepMe[] = {1};
-		int numAttsIn = psAtts;
-		int numAttsOut = 1;
+	Pipe __ps (pipesz);
+	int keepMe[] = {1};
+	int numAttsIn = psAtts;
+	int numAttsOut = 1;
 	P_ps.Use_n_Pages (buffsz);
 
 	DuplicateRemoval D;
-		// inpipe = __ps
-		Pipe ___ps (pipesz);
-		Schema __ps_sch ("__ps", 1, &IA);
+	// inpipe = __ps
+	Pipe ___ps (pipesz);
+	Schema __ps_sch ("__ps", 1, &IA);
 		
 	WriteOut W;
-		// inpipe = ___ps
-		char *fwpath = "ps.w.tmp";
-		FILE *writefile = fopen (fwpath, "w");
+	// inpipe = ___ps
+	char *fwpath = "ps.w.tmp";
+	FILE *writefile = fopen (fwpath, "w");
 
 	SF_ps.Run (dbf_ps, _ps, cnf_ps, lit_ps);
 	P_ps.Run (_ps, __ps, keepMe, numAttsIn, numAttsOut);
@@ -249,6 +249,7 @@ void q5 () {
 	W.WaitUntilDone ();
 
 	cout << " query5 finished..output written to file " << fwpath << "\n";
+	dbf_ps.Close();
 }
 
 // select sum (ps_supplycost) from supplier, partsupp 
