@@ -193,12 +193,12 @@ void q4 () {
 	Schema join_sch ("join_sch", outAtts, joinatt);
 
 	Sum T;
-		// _s (input pipe)
-		Pipe _out (1);
-		Function func;
-			char *str_sum = "(ps_supplycost)";
-			get_cnf (str_sum, &join_sch, func);
-			func.Print ();
+	// _s (input pipe)
+	Pipe _out (1);
+	Function func;
+	char *str_sum = "(ps_supplycost)";
+	get_cnf (str_sum, &join_sch, func);
+	func.Print ();
 	T.Use_n_Pages (1);
 
 	SF_ps.Run (dbf_ps, _ps, cnf_ps, lit_ps); // 161 recs qualified
@@ -229,6 +229,7 @@ void q5 () {
 	P_ps.Use_n_Pages (buffsz);
 
 	DuplicateRemoval D;
+	D.Use_n_Pages(buffsz);
 	// inpipe = __ps
 	Pipe ___ps (pipesz);
 	Schema __ps_sch ("__ps", 1, &IA);

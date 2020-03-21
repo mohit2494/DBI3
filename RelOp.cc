@@ -35,7 +35,6 @@ void* SelectFile::operation() {
 		}
 	}
 	outPipe->ShutDown();
-	cerr<<"SF: "<<count<<endl;
 }
 //------------------------------------------------------------------------------------------------
 void SelectPipe::Run (Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal) { 
@@ -87,26 +86,41 @@ void* Project::caller(void *args) {
 // function is called by the thread
 void* Project::operation() {
 	Record rec;
-	int count = 0;
-	while (inPipe->Remove(&rec)) {
-		count ++;
+	while (inPipe->Remove(&rec)) { 
 		rec.Project(keepMe, numAttsOutput, numAttsInput);
 		outPipe->Insert(&rec);
 	}
 	outPipe->ShutDown();
-	cerr << "Project :" << count << endl;
 }
 //------------------------------------------------------------------------------------------------
 void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal) { 
+	this->inPipeL = &inPipeL;
+	this->inPipeR = &inPipeR;
+	this->outPipe = &outPipe;
+	this->selOp = &selOp;
+	this->literal = &literal;
+	pthread_create(&thread, NULL, caller, (void *)this);
 
 }
 void Join::WaitUntilDone () { 
 	pthread_join (thread, NULL);
 }
 void Join::Use_n_Pages (int n) {
-
+	rl = n;
 }
-
+void* Join::caller(void *args) {
+	((Join*)args)->operation();
+}
+// function is called by the thread
+void* Join::operation() {
+	Pipe lsp(500), rsp(500); CNF cnf;
+	OrderMaker lom,rom;
+	selOp->GetSortOrders(lom,rom);
+	BigQ lq(*inPipeL, lsp, lom, rl); 
+	BigQ rq(*inPipeR, rsp, rom, rl);
+	Record lr, rr, m;
+	
+}
 
 //------------------------------------------------------------------------------------------------
 void DuplicateRemoval::Run (Pipe &inPipe, Pipe &outPipe, Schema &mySchema) { 
@@ -119,17 +133,16 @@ void DuplicateRemoval::WaitUntilDone () {
 	pthread_join (thread, NULL);
 }
 void DuplicateRemoval::Use_n_Pages (int n) { 
-	runlength = n;
+	this->runlength = n;
 }
 void* DuplicateRemoval::caller(void *args) {
 	((DuplicateRemoval*)args)->operation();
 }
 // function is called by the thread
 void* DuplicateRemoval::operation() {
-	int c=0;
 	OrderMaker om(mySchema); 
 	Pipe *sp = new Pipe(100);
-	Record pr, cr;	
+	Record pr, cr;
 	BigQ sq(*inPipe, *sp, om, runlength);
 	ComparisonEngine ce;
 	sp->Remove(&pr);
@@ -137,10 +150,8 @@ void* DuplicateRemoval::operation() {
 		if(!ce.Compare(&pr, &cr, &om)) continue;
 		outPipe->Insert(&pr);
 		pr.Consume(&cr);
-		c++;
 	}
-	outPipe->Insert(&pr);outPipe->ShutDown();c++;
-	cerr << "DR "<<c<<endl;
+	outPipe->Insert(&pr);outPipe->ShutDown();
 }
 //------------------------------------------------------------------------------------------------
 void Sum::Run (Pipe &inPipe, Pipe &outPipe, Function &computeMe) { 
@@ -223,12 +234,12 @@ void* WriteOut::caller(void *args) {
 void* WriteOut::operation() {
 	
 	// reference taken from Record.print()
-	Record rec; int c=0;
+	Record rec; int cnt=0;
 	int n = mySchema->GetNumAtts();
 	Attribute *atts = mySchema->GetAtts();
 		
 	while(inPipe->Remove(&rec)) {
-		c++;
+		cnt++;
 		// loop through all of the attributes
 		for (int i = 0; i < n; i++) {
 
@@ -262,7 +273,7 @@ void* WriteOut::operation() {
 		}
 		fprintf(outFile,"%s","\n");
 	}
-	cerr << "File: " << c << endl;
 	fclose(outFile);
+	cerr << " number of records written "<<cnt<<endl;
 }
 

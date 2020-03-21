@@ -77,10 +77,13 @@ class Join : public RelationalOp {
 	Pipe *outPipe;
 	CNF *selOp;
 	Record *literal;
+	int rl;
 	public:
 	void Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
+	static void* caller(void*);
+	void *operation();
 };
 
 //-------------------------------------------------------------------------------------

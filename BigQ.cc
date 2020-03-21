@@ -54,7 +54,6 @@ void BigQ :: Phase1()
     }
     this->f_path = "temp.xbin";
     this->totalRuns = runCount;
-    cerr << "BigQ Read : " << cnt << endl;
 }
 
 // sort runs from file using Run Manager
@@ -72,7 +71,6 @@ void BigQ :: Phase2()
         }
         myTree->RefillOutputBuffer();
     }
-    cout << "BigQ Write : " << cnt << endl;
 }
 
 void BigQ::sortCompleteRun(run *run, OrderMaker *sortorder) {
