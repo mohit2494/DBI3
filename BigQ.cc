@@ -12,7 +12,7 @@ void* BigQ :: Driver(void *p){
 void BigQ :: Phase1()
 {
     Record tRec;
-    run tRun(this->myThreadData.runlen,this->myThreadData.sortorder);
+    run tRun(this->myThreadData.runlen,this->myThreadData.sortorder,this->f_path);
 
     // add 1 page for adding records
     long long int pageCount=0;
@@ -52,7 +52,6 @@ void BigQ :: Phase1()
         tRun.writeRunToFile(&this->myFile);
         tRun.clearPages();
     }
-    this->f_path = "temp.xbin";
     this->totalRuns = runCount;
 }
 
@@ -66,6 +65,9 @@ void BigQ :: Phase2()
     while(myTree->GetSortedPage(&tempPage)){
         Record tempRecord;
         while(tempPage->GetFirst(&tempRecord)){
+            if (cnt <100){
+//                tempRecord.Print(new Schema("catalog","partsupp"));
+            }
             this->myThreadData.out->Insert(&tempRecord);
             cnt++;
         }
@@ -98,7 +100,15 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen) {
     myThreadData.out = &out;
     myThreadData.sortorder = &sortorder;
     myThreadData.runlen = runlen;
-    myTree=NULL;f_path=NULL;
+    myTree=NULL;
+    
+ 
+    string str("temp_" + to_string(Utilities::getNextCounter()) +".xbin");
+    char *cstr = new char[str.length() + 1];
+    strcpy(cstr, str.c_str());
+    this->f_path = cstr;
+    cout<<f_path;
+    
     pthread_create(&myThread, NULL, BigQ::Driver,this);
     //pthread_join(myThread, NULL);
     //out.ShutDown ();
@@ -106,19 +116,21 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen) {
 
 // destructor
 BigQ::~BigQ () {
-    if(Utilities::checkfileExist("temp.xbin")) {
-        if( remove( "temp.xbin" ) != 0 )
+    if(Utilities::checkfileExist(f_path)) {
+        if( remove(f_path) != 0 )
         cerr<< "Error deleting file" ;
     }
 }
 // ------------------------------------------------------------------
 
 // ------------------------------------------------------------------
-run::run(int runlen) {
+run::run(int runlen,char * f_path) {
+    this->f_path = f_path;
     this->runLength = runlen;
     this->sortorder = NULL;
 }
-run::run(int runlen,OrderMaker * sortorder) {
+run::run(int runlen,OrderMaker * sortorder,char * f_path ) {
+    this->f_path = f_path;
     this->runLength = runlen;
     this->sortorder = sortorder;
 }
@@ -148,11 +160,11 @@ int run::addRecordAtPage(long long int pageCount, Record *rec) {
 }
 int run::writeRunToFile(File *file) {
     int writeLocation=0;
-    if(!Utilities::checkfileExist("temp.xbin")) {
-        file->Open(0,"temp.xbin");
+    if(!Utilities::checkfileExist(f_path)) {
+        file->Open(0,f_path);
     }
     else{
-        file->Open(1,"temp.xbin");
+        file->Open(1,f_path);
         writeLocation=file->GetLength()-1;
     }
     int loopend = pages.size()>runLength ? runLength:pages.size();

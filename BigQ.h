@@ -40,12 +40,13 @@ typedef struct {
 
 // ------------------------------------------------------------------
 class run {
+    char * f_path;
     int runLength;
     OrderMaker * sortorder;
     vector <Page *> pages;
     public:
-        run(int runLength);
-        run(int runLength,OrderMaker * sortorder);
+        run(int runLength,char * f_path);
+        run(int runLength,OrderMaker * sortorder,char * f_path);
         void AddPage();
         //      function to add page
         void AddPage(Page *p);

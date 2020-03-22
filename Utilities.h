@@ -1,5 +1,7 @@
 #include "string"
 #include "iostream"
+#include "fstream"
+
 // #include "cstdio"
 // #include <ctime>
 /**
@@ -18,6 +20,21 @@ class Utilities {
             } else {
                 return 0;
             }   
+        }
+        static int getNextCounter () {
+            ifstream ifile;
+            ofstream ofile;
+            int counter = 0;
+            if (checkfileExist("counter.txt")){
+                ifile.open("counter.txt",ios::in);
+                ifile.read((char*)&counter,sizeof(int));
+                ifile.close();
+            }
+            counter++;
+            ofile.open("counter.txt",ios::out);
+            ofile.write((char*)&counter,sizeof(int));
+            ofile.close();
+            return counter;
         }
 
         // static int Log(string s) {
