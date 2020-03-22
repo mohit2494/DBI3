@@ -1,4 +1,11 @@
 #include "RelOp.h"
+#include<sstream>
+
+#define CLEANUPVECTOR(v) \
+	({ for(vector<Record *>::iterator it = v.begin(); it!=v.end(); it++) { \
+		if(!*it) { delete *it; } }\
+		v.clear();\
+})
 
 //------------------------------------------------------------------------------------------------
 void SelectFile::Run (DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal) {
@@ -34,6 +41,7 @@ void* SelectFile::operation() {
 			count++;
 		}
 	}
+	cout << "SF :" << count << endl;
 	outPipe->ShutDown();
 }
 //------------------------------------------------------------------------------------------------
@@ -93,12 +101,14 @@ void* Project::operation() {
 	outPipe->ShutDown();
 }
 //------------------------------------------------------------------------------------------------
-void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal) { 
+void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal, Schema &ls, Schema &rs) { 
 	this->inPipeL = &inPipeL;
 	this->inPipeR = &inPipeR;
 	this->outPipe = &outPipe;
 	this->selOp = &selOp;
 	this->literal = &literal;
+	this->ls = &ls;
+	this->rs = &rs;
 	pthread_create(&thread, NULL, caller, (void *)this);
 
 }
@@ -113,50 +123,74 @@ void* Join::caller(void *args) {
 }
 // function is called by the thread
 void* Join::operation() {
+	
 	Pipe spl(500), spr(500);
 	OrderMaker lom,rom;ComparisonEngine ce;
 	selOp->GetSortOrders(lom,rom);
 	BigQ lq(*inPipeL, spl, lom, rl); 
 	BigQ rq(*inPipeR, spr, rom, rl);
-	Record lr, rr, plr, prr, m;
+	Record lr, rr, m;
 	
 	// normal join
 	if(lom.getNumAtts()==rom.getNumAtts()!=0) {
 		bool le=spl.Remove(&lr); bool re=spr.Remove(&rr);
-		while(true) {
-			if (le&&re) {
-				int v = ce.Compare(&lr,&rr,selOp);
-				if (v<0) {le=spl.Remove(&lr);}
-				else if(v>0) {re=spl.Remove(&rr);}
-				else {
-					MergeRecord(&m, &lr, &rr, &plr, &prr);outPipe->Insert(&m);
-					bool le=spl.Remove(&lr); bool re=spr.Remove(&rr);
-					while(1) {
-						if(!ce.Compare(&plr,&rr,selOp)) {
-							MergeRecord(&m,&plr,&rr,&plr, &prr);outPipe->Insert(&m);
-						}
-						else if(!ce.Compare(&prr,&lr,selOp)){
-							MergeRecord(&m,&lr,&prr,&plr,&prr);outPipe->Insert(&m);
-						}
-						else {
-							break;
-						}
+		int c=0;int lc=0; int rc=0;
+		while(le&&re) {
+			int v = ce.Compare(&lr,&lom, &rr, &rom);
+			if (v==-1)    { le=spl.Remove(&lr);lc++;}
+			else if(v==1) { re=spr.Remove(&rr);rc++;}
+			else {
+				vector<Record *> vl; vector <Record *> vr;
+				Record *pushlr  = new Record();  pushlr->Consume(&lr);  vl.push_back(pushlr);
+				Record *pushrr  = new Record();  pushrr->Consume(&rr);  vr.push_back(pushrr);
+				
+				le=(bool)spl.Remove(&lr);lc++;
+				while(le && (!ce.Compare(&lr,pushlr,&lom))) {
+					Record *tr = new Record(); tr->Consume(&lr); vl.push_back(tr);le=spl.Remove(&lr);lc++;
+				}
+
+				re=(bool)spr.Remove(&rr);rc++;
+				while(re &&(!ce.Compare(&rr,pushrr,&rom))) {
+					Record *tr = new Record(); tr->Consume(&rr); vr.push_back(tr);re=spr.Remove(&rr);rc++;
+				}
+				
+				cout << vl.size() << " " << vr.size() << endl;
+
+				for(int i=0; i < vl.size(); i++){ 
+					for(int j=0; j< vr.size(); j++) {
+						// vl[i]->Print(ls); vr[j]->Print(rs);
+						// cout << endl;
+						//cout << ++c << endl;
+						MergeRecord(vl[i], vr[j]);c++;
 					}
 				}
+				// if(le) lr.Print(ls);
+				// if(re) rr.Print(rs);
+				// cout<<endl;
+				CLEANUPVECTOR(vl);CLEANUPVECTOR(vr);
 			}
 		}
+		cerr << lc << " " << rc << endl;
+		cerr << "total count " << c << endl;
 	}
 	// block-nested join
 	else {}
+	while(spl.Remove(&lr)) {}
+	while(spr.Remove(&rr)) {}
+
+	outPipe->ShutDown();
 }
 
-void Join::MergeRecord(Record *m, Record *lr, Record *rr, Record *plr, Record *prr) {
+void Join::MergeRecord(Record *lr, Record *rr) {
 	int nal=lr->getNumAtts(), nar=rr->getNumAtts();
 	int *atts = new int[nal+nar];
 	for (int k=0;k<nal;k++) atts[k]=k;
 	for (int k=0;k<nar;k++) atts[k+nal]=k;
-	plr->Copy(lr);prr->Copy(rr);
+	Record *m = new Record();
 	m->MergeRecords(lr, rr, nal, nar, atts, nal+nar, nal);
+	outPipe->Insert(m);
+	delete atts;
+	return;
 }
 //------------------------------------------------------------------------------------------------
 void DuplicateRemoval::Run (Pipe &inPipe, Pipe &outPipe, Schema &mySchema) { 
@@ -237,7 +271,7 @@ void GroupBy::WaitUntilDone () {
 	pthread_join (thread, NULL);
 }
 void GroupBy::Use_n_Pages (int n) { 
-	return;
+	rl=n;
 }
 void* GroupBy::caller(void *args) {
 	((GroupBy*)args)->operation();
@@ -245,6 +279,44 @@ void* GroupBy::caller(void *args) {
 // function is called by the thread
 void* GroupBy::operation() {
 	
+	Pipe sp(100);BigQ bq(*inPipe,sp,*(groupAtts),rl);
+	int ir;double dr; Type type;
+	Attribute att{(char *)"sum", type};
+	Schema s((char *)"sum", 1, &att);
+	int nak = groupAtts->getNumAtts() + 1;
+	int *atts = new int[nak];atts[0] = 0;
+	ComparisonEngine ce;
+	Record rec;																																																																																																																																													
+	
+	for(int i = 1; i < nak; i++)
+		atts[i] =groupAtts->whichAtts[i-1];
+
+	
+	if(sp.Remove(&rec)) {
+		bool ne = true;
+		while(ne) {
+			ne = false;
+			type = computeMe->Apply(rec, ir, dr);
+			double sum=0; sum += (ir+dr);
+			Record r,lr;
+			lr.Copy(&rec);
+			while(sp.Remove(&r)) {
+				if(!ce.Compare(&lr, &r, groupAtts)){
+					type = computeMe->Apply(r, ir, dr);
+					sum += (ir+dr);
+				} else {
+					rec.Copy(&r);
+					ne = true;
+					break;
+				}
+			}
+			ostringstream stream;stream <<sum <<"|";
+			Record fr; fr.ComposeRecord(&s, stream.str().c_str());
+			Record t ; t.MergeRecords(&fr, &lr, 1, groupAtts->getNumAtts(), atts,  nak, 1);
+			outPipe->Insert(&t);
+		}
+	}
+	outPipe->ShutDown();
 }
 //------------------------------------------------------------------------------------------------
 void WriteOut::Run (Pipe &inPipe, FILE *outFile, Schema &mySchema) { 

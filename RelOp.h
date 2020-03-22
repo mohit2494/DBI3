@@ -77,14 +77,15 @@ class Join : public RelationalOp {
 	Pipe *outPipe;
 	CNF *selOp;
 	Record *literal;
+	Schema *ls, *rs;
 	int rl;
 	public:
-	void Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
+	void Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal, Schema &ls, Schema &rs);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
 	static void* caller(void*);
 	void *operation();
-	void MergeRecord(Record *m, Record *lr, Record *rr, Record *plr, Record *prr);
+	void MergeRecord(Record *lr, Record *rr);
 };
 
 //-------------------------------------------------------------------------------------
@@ -126,6 +127,7 @@ class GroupBy : public RelationalOp {
 	Pipe *outPipe;
 	OrderMaker *groupAtts;
 	Function *computeMe;
+	int rl;
 	public:
 	void Run (Pipe &inPipe, Pipe &outPipe, OrderMaker &groupAtts, Function &computeMe);
 	void WaitUntilDone ();

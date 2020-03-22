@@ -12,7 +12,7 @@ int clear_pipe (Pipe &in_pipe, Schema *schema, bool print) {
 	int cnt = 0;
 	while (in_pipe.Remove (&rec)) {
 		if (print) {
-			//rec.Print (schema);
+			rec.Print (schema);
 			cout << rec.getNumAtts() << endl;
 		}
 		cnt++;
@@ -181,14 +181,11 @@ void q4 () {
 	char *pred_ps = "(ps_suppkey = ps_suppkey)";
 	init_SF_ps (pred_ps, 100);
 
-	Join J;
-	// left _s
-	// right _ps
+	Join J;J.Use_n_Pages(100);
 	Pipe _s_ps (pipesz);
 	CNF cnf_p_ps;
 	Record lit_p_ps;
 	get_cnf ("(s_suppkey = ps_suppkey)", s->schema(), ps->schema(), cnf_p_ps, lit_p_ps);
-	cnf_p_ps.Print();
 
 	int outAtts = sAtts + psAtts;
 	Attribute ps_supplycost = {"ps_supplycost", Double};
@@ -205,13 +202,14 @@ void q4 () {
 	T.Use_n_Pages (1);
 
 	SF_ps.Run (dbf_ps, _ps, cnf_ps, lit_ps); // 161 recs qualified
-	J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps);
+	J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps, *s->schema(), *ps->schema());
 	T.Run (_s_ps, _out, func);
 
+	SF_s.WaitUntilDone();
 	SF_ps.WaitUntilDone ();
 	J.WaitUntilDone ();
 	T.WaitUntilDone ();
-
+	cout << "coming here";
 	Schema sum_sch ("sum_sch", 1, &DA);
 	int cnt = clear_pipe (_out, &sum_sch, true);
 	cout << " query4 returned " << cnt << " recs \n";
@@ -270,12 +268,13 @@ void q6 () {
 	init_SF_ps (pred_ps, 100);
 
 	Join J;
-		// left _s
-		// right _ps
-		Pipe _s_ps (pipesz);
-		CNF cnf_p_ps;
-		Record lit_p_ps;
-		get_cnf ("(s_suppkey = ps_suppkey)", s->schema(), ps->schema(), cnf_p_ps, lit_p_ps);
+	// left _s
+	// right _ps
+	J.Use_n_Pages(100);
+	Pipe _s_ps (pipesz);
+	CNF cnf_p_ps;
+	Record lit_p_ps;
+	get_cnf ("(s_suppkey = ps_suppkey)", s->schema(), ps->schema(), cnf_p_ps, lit_p_ps);
 
 	int outAtts = sAtts + psAtts;
 	Attribute s_nationkey = {"s_nationkey", Int};
@@ -284,17 +283,17 @@ void q6 () {
 	Schema join_sch ("join_sch", outAtts, joinatt);
 
 	GroupBy G;
-		// _s (input pipe)
-		Pipe _out (1);
-		Function func;
-			char *str_sum = "(ps_supplycost)";
-			get_cnf (str_sum, &join_sch, func);
-			func.Print ();
-			OrderMaker grp_order (&join_sch);
+	// _s (input pipe)
+	Pipe _out (1);
+	Function func;
+	char *str_sum = "(ps_supplycost)";
+	get_cnf (str_sum, &join_sch, func);
+	func.Print ();
+	OrderMaker grp_order (&join_sch);
 	G.Use_n_Pages (1);
 
 	SF_ps.Run (dbf_ps, _ps, cnf_ps, lit_ps); // 161 recs qualified
-	J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps);
+	//J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps);
 	G.Run (_s_ps, _out, grp_order, func);
 
 	SF_ps.WaitUntilDone ();

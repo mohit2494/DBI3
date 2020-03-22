@@ -44,12 +44,12 @@ class  OrderMaker {
 	friend class CNF;
 
 	int numAtts;
-
-	int whichAtts[MAX_ANDS];
 	Type whichTypes[MAX_ANDS];
 
 public:
 	
+	int whichAtts[MAX_ANDS];
+
 	// creates an empty OrdermMaker
 	OrderMaker();
 
@@ -62,7 +62,7 @@ public:
 
 	// get number of attributes
 	int getNumAtts();
-	
+
 };
 
 class Record;

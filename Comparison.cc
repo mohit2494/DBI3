@@ -84,21 +84,21 @@ OrderMaker :: OrderMaker(Schema *schema) {
 
 	// now add in the doubles
 	for (int i = 0; i < n; i++) {
-                if (atts[i].myType == Double) {
-                        whichAtts[numAtts] = i;
-                        whichTypes[numAtts] = Double;
-                        numAtts++;
-                }
-        }
+		if (atts[i].myType == Double) {
+				whichAtts[numAtts] = i;
+				whichTypes[numAtts] = Double;
+				numAtts++;
+		}
+	}
 
 	// and finally the strings
-        for (int i = 0; i < n; i++) {
-                if (atts[i].myType == String) {
-                        whichAtts[numAtts] = i;
-                        whichTypes[numAtts] = String;
-                        numAtts++;
-                }
-        }
+	for (int i = 0; i < n; i++) {
+		if (atts[i].myType == String) {
+				whichAtts[numAtts] = i;
+				whichTypes[numAtts] = String;
+				numAtts++;
+		}
+	}
 }
 
 
