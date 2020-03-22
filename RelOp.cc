@@ -113,15 +113,51 @@ void* Join::caller(void *args) {
 }
 // function is called by the thread
 void* Join::operation() {
-	Pipe lsp(500), rsp(500); CNF cnf;
-	OrderMaker lom,rom;
+	Pipe spl(500), spr(500);
+	OrderMaker lom,rom;ComparisonEngine ce;
 	selOp->GetSortOrders(lom,rom);
-	BigQ lq(*inPipeL, lsp, lom, rl); 
-	BigQ rq(*inPipeR, rsp, rom, rl);
-	Record lr, rr, m;
+	BigQ lq(*inPipeL, spl, lom, rl); 
+	BigQ rq(*inPipeR, spr, rom, rl);
+	Record lr, rr, plr, prr, m;
 	
+	// normal join
+	if(lom.getNumAtts()==rom.getNumAtts()!=0) {
+		bool le=spl.Remove(&lr); bool re=spr.Remove(&rr);
+		while(true) {
+			if (le&&re) {
+				int v = ce.Compare(&lr,&rr,selOp);
+				if (v<0) {le=spl.Remove(&lr);}
+				else if(v>0) {re=spl.Remove(&rr);}
+				else {
+					MergeRecord(&m, &lr, &rr, &plr, &prr);outPipe->Insert(&m);
+					bool le=spl.Remove(&lr); bool re=spr.Remove(&rr);
+					while(1) {
+						if(!ce.Compare(&plr,&rr,selOp)) {
+							MergeRecord(&m,&plr,&rr,&plr, &prr);outPipe->Insert(&m);
+						}
+						else if(!ce.Compare(&prr,&lr,selOp)){
+							MergeRecord(&m,&lr,&prr,&plr,&prr);outPipe->Insert(&m);
+						}
+						else {
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	// block-nested join
+	else {}
 }
 
+void Join::MergeRecord(Record *m, Record *lr, Record *rr, Record *plr, Record *prr) {
+	int nal=lr->getNumAtts(), nar=rr->getNumAtts();
+	int *atts = new int[nal+nar];
+	for (int k=0;k<nal;k++) atts[k]=k;
+	for (int k=0;k<nar;k++) atts[k+nal]=k;
+	plr->Copy(lr);prr->Copy(rr);
+	m->MergeRecords(lr, rr, nal, nar, atts, nal+nar, nal);
+}
 //------------------------------------------------------------------------------------------------
 void DuplicateRemoval::Run (Pipe &inPipe, Pipe &outPipe, Schema &mySchema) { 
 	this->inPipe = &inPipe;

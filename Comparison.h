@@ -38,7 +38,7 @@ public:
 class Schema;
 
 // This structure encapsulates a sort order for records
-class OrderMaker {
+class  OrderMaker {
 
 	friend class ComparisonEngine;
 	friend class CNF;
@@ -50,7 +50,6 @@ class OrderMaker {
 
 public:
 	
-
 	// creates an empty OrdermMaker
 	OrderMaker();
 
@@ -60,6 +59,10 @@ public:
 
 	// print to the screen
 	void Print ();
+
+	// get number of attributes
+	int getNumAtts();
+	
 };
 
 class Record;

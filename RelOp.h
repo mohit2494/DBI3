@@ -84,6 +84,7 @@ class Join : public RelationalOp {
 	void Use_n_Pages (int n);
 	static void* caller(void*);
 	void *operation();
+	void MergeRecord(Record *m, Record *lr, Record *rr, Record *plr, Record *prr);
 };
 
 //-------------------------------------------------------------------------------------

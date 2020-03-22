@@ -68,6 +68,11 @@ public:
 	// prints the contents of the record; this requires
 	// that the schema also be given so that the record can be interpreted
 	void Print (Schema *mySchema);
+
+	// return number of attributes in the record without using schema
+	int getNumAtts(){ 
+		return (((int *)bits)[1]-sizeof(int))/sizeof(int);
+	}
 };
 
 #endif

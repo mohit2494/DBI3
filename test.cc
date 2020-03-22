@@ -12,7 +12,8 @@ int clear_pipe (Pipe &in_pipe, Schema *schema, bool print) {
 	int cnt = 0;
 	while (in_pipe.Remove (&rec)) {
 		if (print) {
-			rec.Print (schema);
+			//rec.Print (schema);
+			cout << rec.getNumAtts() << endl;
 		}
 		cnt++;
 	}
@@ -98,6 +99,7 @@ void q1 () {
 	init_SF_ps (pred_ps, 100);
 
 	SF_ps.Run (dbf_ps, _ps, cnf_ps, lit_ps);
+	
 	SF_ps.WaitUntilDone ();
 
 	int cnt = clear_pipe (_ps, ps->schema (), true);
@@ -180,12 +182,13 @@ void q4 () {
 	init_SF_ps (pred_ps, 100);
 
 	Join J;
-		// left _s
-		// right _ps
-		Pipe _s_ps (pipesz);
-		CNF cnf_p_ps;
-		Record lit_p_ps;
-		get_cnf ("(s_suppkey = ps_suppkey)", s->schema(), ps->schema(), cnf_p_ps, lit_p_ps);
+	// left _s
+	// right _ps
+	Pipe _s_ps (pipesz);
+	CNF cnf_p_ps;
+	Record lit_p_ps;
+	get_cnf ("(s_suppkey = ps_suppkey)", s->schema(), ps->schema(), cnf_p_ps, lit_p_ps);
+	cnf_p_ps.Print();
 
 	int outAtts = sAtts + psAtts;
 	Attribute ps_supplycost = {"ps_supplycost", Double};
