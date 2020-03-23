@@ -1,5 +1,6 @@
 #include "BigQ.h"
 #include "Utilities.h"
+#include <string.h>
 using namespace std;
 
 // ------------------------------------------------------------------
@@ -65,9 +66,6 @@ void BigQ :: Phase2()
     while(myTree->GetSortedPage(&tempPage)){
         Record tempRecord;
         while(tempPage->GetFirst(&tempRecord)){
-            if (cnt <100){
-//                tempRecord.Print(new Schema("catalog","partsupp"));
-            }
             this->myThreadData.out->Insert(&tempRecord);
             cnt++;
         }
@@ -107,7 +105,6 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen) {
     char *cstr = new char[str.length() + 1];
     strcpy(cstr, str.c_str());
     this->f_path = cstr;
-    cout<<f_path;
     
     pthread_create(&myThread, NULL, BigQ::Driver,this);
     //pthread_join(myThread, NULL);

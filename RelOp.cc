@@ -38,7 +38,7 @@ void* SelectFile::operation() {
 	while(inFile->GetNext(rec)) {
 		if (cmp.Compare(&rec, literal, selOp)) {
 			outPipe->Insert(&rec);
-			count++;
+			++count;
 		}
 	}
 	cout << "SF :" << count << endl;
@@ -101,14 +101,12 @@ void* Project::operation() {
 	outPipe->ShutDown();
 }
 //------------------------------------------------------------------------------------------------
-void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal, Schema &ls, Schema &rs) { 
+void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal) { 
 	this->inPipeL = &inPipeL;
 	this->inPipeR = &inPipeR;
 	this->outPipe = &outPipe;
 	this->selOp = &selOp;
 	this->literal = &literal;
-	this->ls = &ls;
-	this->rs = &rs;
 	pthread_create(&thread, NULL, caller, (void *)this);
 
 }
@@ -131,10 +129,12 @@ void* Join::operation() {
 	BigQ rq(*inPipeR, spr, rom, rl);
 	Record lr, rr, m;
 	
+	
 	// normal join
 	if(lom.getNumAtts()==rom.getNumAtts()!=0) {
 		bool le=spl.Remove(&lr); bool re=spr.Remove(&rr);
-		int c=0;int lc=0; int rc=0;
+		int c=0;int lc=1; int rc=1;
+		
 		while(le&&re) {
 			int v = ce.Compare(&lr,&lom, &rr, &rom);
 			if (v==-1)    { le=spl.Remove(&lr);lc++;}
@@ -144,34 +144,25 @@ void* Join::operation() {
 				Record *pushlr  = new Record();  pushlr->Consume(&lr);  vl.push_back(pushlr);
 				Record *pushrr  = new Record();  pushrr->Consume(&rr);  vr.push_back(pushrr);
 				
-				le=(bool)spl.Remove(&lr);lc++;
+				le=spl.Remove(&lr);lc++;
 				while(le && (!ce.Compare(&lr,pushlr,&lom))) {
 					Record *tr = new Record(); tr->Consume(&lr); vl.push_back(tr);le=spl.Remove(&lr);lc++;
 				}
 
-				re=(bool)spr.Remove(&rr);rc++;
+				re=spr.Remove(&rr);rc++;
 				while(re &&(!ce.Compare(&rr,pushrr,&rom))) {
 					Record *tr = new Record(); tr->Consume(&rr); vr.push_back(tr);re=spr.Remove(&rr);rc++;
 				}
-				
-				cout << vl.size() << " " << vr.size() << endl;
-
+				c++;
 				for(int i=0; i < vl.size(); i++){ 
 					for(int j=0; j< vr.size(); j++) {
-						// vl[i]->Print(ls); vr[j]->Print(rs);
-						// cout << endl;
-						//cout << ++c << endl;
-						MergeRecord(vl[i], vr[j]);c++;
+						MergeRecord(vl[i], vr[j]);
 					}
 				}
-				// if(le) lr.Print(ls);
-				// if(re) rr.Print(rs);
-				// cout<<endl;
 				CLEANUPVECTOR(vl);CLEANUPVECTOR(vr);
 			}
 		}
-		cerr << lc << " " << rc << endl;
-		cerr << "total count " << c << endl;
+		
 	}
 	// block-nested join
 	else {}
@@ -279,44 +270,52 @@ void* GroupBy::caller(void *args) {
 // function is called by the thread
 void* GroupBy::operation() {
 	
-	Pipe sp(100);BigQ bq(*inPipe,sp,*(groupAtts),rl);
-	int ir;double dr; Type type;
-	Attribute att{(char *)"sum", type};
-	Schema s((char *)"sum", 1, &att);
-	int nak = groupAtts->getNumAtts() + 1;
-	int *atts = new int[nak];atts[0] = 0;
-	ComparisonEngine ce;
-	Record rec;																																																																																																																																													
-	
-	for(int i = 1; i < nak; i++)
-		atts[i] =groupAtts->whichAtts[i-1];
-
-	
-	if(sp.Remove(&rec)) {
-		bool ne = true;
-		while(ne) {
-			ne = false;
-			type = computeMe->Apply(rec, ir, dr);
-			double sum=0; sum += (ir+dr);
-			Record r,lr;
-			lr.Copy(&rec);
-			while(sp.Remove(&r)) {
-				if(!ce.Compare(&lr, &r, groupAtts)){
-					type = computeMe->Apply(r, ir, dr);
-					sum += (ir+dr);
-				} else {
-					rec.Copy(&r);
-					ne = true;
-					break;
-				}
+	Pipe sp(1000);BigQ bq(*inPipe,sp,*groupAtts,rl);
+    Record *gr = new Record(),*pr=new Record(),*cr=NULL;
+	int ir,si;double dr,sd;Type rt;
+    ComparisonEngine ce;bool grchng=false,pe = false;
+    
+	// defensive check
+    if(!sp.Remove(pr)) { outPipe->ShutDown(); return 0; }
+ 
+    while(!pe) {    
+        si =0;sd=0;ir=0;dr=0;
+        cr = new Record();
+        grchng = false;
+    
+        while(!pe && !grchng) {
+            sp.Remove(cr);
+			// defensive check in case record is empty
+            if(cr->bits!=NULL) { 
+				if(ce.Compare(cr,pr,groupAtts)!=0){gr->Copy(pr);grchng=true;} 
 			}
-			ostringstream stream;stream <<sum <<"|";
-			Record fr; fr.ComposeRecord(&s, stream.str().c_str());
-			Record t ; t.MergeRecords(&fr, &lr, 1, groupAtts->getNumAtts(), atts,  nak, 1);
-			outPipe->Insert(&t);
-		}
-	}
-	outPipe->ShutDown();
+            else { pe = true; }
+			rt = computeMe->Apply(*pr,ir,dr);
+			if(rt==Int) { si += ir; } else if(rt==Double) { sd += dr; }
+            pr->Consume(cr);
+        }
+    
+        Record *op = new Record();
+        if(rt==Double) {
+			Attribute a = {(char*)"sum", Double};Schema ss((char*)"somefile",1,&a);
+            char sstr[30];sprintf(sstr, "%f|", sd);
+            op->ComposeRecord(&ss,sstr);
+        }
+        if (rt==Int) {
+			Attribute att = {(char*)"sum", Int};Schema ss((char*)"somefile",1,&att);
+			char sstr[30];sprintf(sstr, "%d|", si);
+            op->ComposeRecord(&ss,sstr);            
+        }
+
+        Record rr;
+        int nsatt = groupAtts->numAtts+1; int satt[nsatt]; satt[0]=0;
+        for(int i=1;i<nsatt;i++) {
+            satt[i]=groupAtts->whichAtts[i-1];
+        }
+        rr.MergeRecords(op,gr,1,nsatt-1,satt,nsatt,1);
+        outPipe->Insert(&rr);
+    }
+    outPipe->ShutDown();
 }
 //------------------------------------------------------------------------------------------------
 void WriteOut::Run (Pipe &inPipe, FILE *outFile, Schema &mySchema) { 

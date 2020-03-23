@@ -13,7 +13,6 @@ int clear_pipe (Pipe &in_pipe, Schema *schema, bool print) {
 	while (in_pipe.Remove (&rec)) {
 		if (print) {
 			rec.Print (schema);
-			cout << rec.getNumAtts() << endl;
 		}
 		cnt++;
 	}
@@ -202,14 +201,13 @@ void q4 () {
 	T.Use_n_Pages (1);
 
 	SF_ps.Run (dbf_ps, _ps, cnf_ps, lit_ps); // 161 recs qualified
-	J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps, *s->schema(), *ps->schema());
+	J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps);
 	T.Run (_s_ps, _out, func);
 
 	SF_s.WaitUntilDone();
 	SF_ps.WaitUntilDone ();
 	J.WaitUntilDone ();
 	T.WaitUntilDone ();
-	cout << "coming here";
 	Schema sum_sch ("sum_sch", 1, &DA);
 	int cnt = clear_pipe (_out, &sum_sch, true);
 	cout << " query4 returned " << cnt << " recs \n";
@@ -262,15 +260,15 @@ void q6 () {
 	cout << " query6 \n";
 	char *pred_s = "(s_suppkey = s_suppkey)";
 	init_SF_s (pred_s, 100);
-	SF_s.Run (dbf_s, _s, cnf_s, lit_s); // 10k recs qualified
+
 
 	char *pred_ps = "(ps_suppkey = ps_suppkey)";
 	init_SF_ps (pred_ps, 100);
 
 	Join J;
+	J.Use_n_Pages(100);
 	// left _s
 	// right _ps
-	J.Use_n_Pages(100);
 	Pipe _s_ps (pipesz);
 	CNF cnf_p_ps;
 	Record lit_p_ps;
@@ -280,29 +278,45 @@ void q6 () {
 	Attribute s_nationkey = {"s_nationkey", Int};
 	Attribute ps_supplycost = {"ps_supplycost", Double};
 	Attribute joinatt[] = {IA,SA,SA,s_nationkey,SA,DA,SA,IA,IA,IA,ps_supplycost,SA};
+
 	Schema join_sch ("join_sch", outAtts, joinatt);
 
 	GroupBy G;
 	// _s (input pipe)
-	Pipe _out (1);
+	Pipe _out (pipesz);
 	Function func;
 	char *str_sum = "(ps_supplycost)";
 	get_cnf (str_sum, &join_sch, func);
 	func.Print ();
-	OrderMaker grp_order (&join_sch);
+	//OrderMaker grp_order (&join_sch);
+	OrderMaker grp_order;
+	grp_order.numAtts=1;
+	int n = join_sch.GetNumAtts();
+	Attribute *myAtts=join_sch.GetAtts();
+	for(int i=0;i<n;i++)
+	{
+		if(i==3)
+		{
+			grp_order.whichAtts[0]=i;
+			grp_order.whichTypes[0]=Int;
+		}
+	}
+
 	G.Use_n_Pages (1);
 
+	SF_s.Run (dbf_s, _s, cnf_s, lit_s); // 10k recs qualified
 	SF_ps.Run (dbf_ps, _ps, cnf_ps, lit_ps); // 161 recs qualified
-	//J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps);
+	J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps);
 	G.Run (_s_ps, _out, grp_order, func);
 
+	SF_s.WaitUntilDone();
 	SF_ps.WaitUntilDone ();
 	J.WaitUntilDone ();
 	G.WaitUntilDone ();
 
 	Schema sum_sch ("sum_sch", 1, &DA);
 	int cnt = clear_pipe (_out, &sum_sch, true);
-	cout << " query6 returned sum for " << cnt << " groups (expected 25 groups)\n"; 
+	cout << " query6 returned sum for " << cnt << " groups (expected 25 groups)\n";
 }
 
 void q7 () { 
