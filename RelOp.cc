@@ -269,53 +269,52 @@ void* GroupBy::caller(void *args) {
 }
 // function is called by the thread
 void* GroupBy::operation() {
-	
+
 	Pipe sp(1000);BigQ bq(*inPipe,sp,*groupAtts,rl);
-    Record *gr = new Record(),*pr=new Record(),*cr=NULL;
+	Record *gr = new Record(),*pr=new Record(),*cr=NULL;
 	int ir,si;double dr,sd;Type rt;
-    ComparisonEngine ce;bool grchng=false,pe = false;
-    
+	ComparisonEngine ce;bool grchng=false,pe = false;
+
 	// defensive check
-    if(!sp.Remove(pr)) { outPipe->ShutDown(); return 0; }
+	if(!sp.Remove(pr)) { outPipe->ShutDown(); return 0; }
  
-    while(!pe) {    
-        si =0;sd=0;ir=0;dr=0;
-        cr = new Record();
-        grchng = false;
-    
-        while(!pe && !grchng) {
-            sp.Remove(cr);
+	while(!pe) {
+		si =0;sd=0;ir=0;dr=0;
+		cr = new Record();
+		grchng = false;
+
+		while(!pe && !grchng) {
+			sp.Remove(cr);
 			// defensive check in case record is empty
-            if(cr->bits!=NULL) { 
-				if(ce.Compare(cr,pr,groupAtts)!=0){gr->Copy(pr);grchng=true;} 
-			}
-            else { pe = true; }
+			if(cr->bits!=NULL) { 
+			if(ce.Compare(cr,pr,groupAtts)!=0){gr->Copy(pr);grchng=true;}}
+			else { pe = true; }
 			rt = computeMe->Apply(*pr,ir,dr);
 			if(rt==Int) { si += ir; } else if(rt==Double) { sd += dr; }
-            pr->Consume(cr);
-        }
-    
-        Record *op = new Record();
-        if(rt==Double) {
+			pr->Consume(cr);
+		}
+
+		Record *op = new Record();
+		if(rt==Double) {
 			Attribute a = {(char*)"sum", Double};Schema ss((char*)"somefile",1,&a);
 			char sstr[30];sprintf(sstr, "%f|", sd);
 			op->ComposeRecord(&ss,sstr);
-        }
-        if (rt==Int) {
+		}
+		if (rt==Int) {
 			Attribute att = {(char*)"sum", Int};Schema ss((char*)"somefile",1,&att);
 			char sstr[30];sprintf(sstr, "%d|", si);
 			op->ComposeRecord(&ss,sstr);            
-        }
+		}
 
-        Record rr;
-        int nsatt = groupAtts->numAtts+1; int satt[nsatt]; satt[0]=0;
-        for(int i=1;i<nsatt;i++) {
-            satt[i]=groupAtts->whichAtts[i-1];
-        }
-        rr.MergeRecords(op,gr,1,nsatt-1,satt,nsatt,1);
-        outPipe->Insert(&rr);
-    }
-    outPipe->ShutDown();
+		Record rr;
+		int nsatt = groupAtts->numAtts+1; int satt[nsatt]; satt[0]=0;
+		for(int i=1;i<nsatt;i++) {
+			satt[i]=groupAtts->whichAtts[i-1];
+		}
+		rr.MergeRecords(op,gr,1,nsatt-1,satt,nsatt,1);
+		outPipe->Insert(&rr);
+	}
+	outPipe->ShutDown();
 }
 //------------------------------------------------------------------------------------------------
 void WriteOut::Run (Pipe &inPipe, FILE *outFile, Schema &mySchema) { 
