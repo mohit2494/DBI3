@@ -298,13 +298,13 @@ void* GroupBy::operation() {
         Record *op = new Record();
         if(rt==Double) {
 			Attribute a = {(char*)"sum", Double};Schema ss((char*)"somefile",1,&a);
-            char sstr[30];sprintf(sstr, "%f|", sd);
-            op->ComposeRecord(&ss,sstr);
+			char sstr[30];sprintf(sstr, "%f|", sd);
+			op->ComposeRecord(&ss,sstr);
         }
         if (rt==Int) {
 			Attribute att = {(char*)"sum", Int};Schema ss((char*)"somefile",1,&att);
 			char sstr[30];sprintf(sstr, "%d|", si);
-            op->ComposeRecord(&ss,sstr);            
+			op->ComposeRecord(&ss,sstr);            
         }
 
         Record rr;
@@ -381,6 +381,6 @@ void* WriteOut::operation() {
 		fprintf(outFile,"%s","\n");
 	}
 	fclose(outFile);
-	cerr << " number of records written "<<cnt<<endl;
+	//cerr << " number of records written "<<cnt<<endl;
 }
 
