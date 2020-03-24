@@ -81,12 +81,15 @@ void* Project::operation() {
 	outPipe->ShutDown();
 }
 //------------------------------------------------------------------------------------------------
-void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal) { 
+void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal, Schema &ls, Schema &rs) { 
 	this->inPipeL = &inPipeL;
 	this->inPipeR = &inPipeR;
 	this->outPipe = &outPipe;
 	this->selOp = &selOp;
 	this->literal = &literal;
+	this->ls = &ls;
+	this->rs = &rs;
+
 	pthread_create(&thread, NULL, caller, (void *)this);
 
 }
@@ -158,7 +161,7 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 
 	// create dbfile; fill dbfile; move to first record
 	DBFile dbf; dbf.Create(Utilities::newRandomFileName(".bin"), heap, NULL);
-	while(inPipeR->Remove(&r)) { ++c; dbf.Add(r); }
+	while(inPipeR->Remove(&r)) { ++c; dbf.Add(r); } cout << "right file: " << c << endl;
 
 	// if empty right pipe
 	if (!c) { while(inPipeL->Remove(&lr)); return; } 
@@ -166,17 +169,28 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 	dbf.MoveFirst();
 	lp = new Page(); rp = new Page();
 	trl = new Record(); trr = new Record();
-
-	while((inPipeL->Remove(&lr))) {		
+	int lpid=0, rpid=0;
+	while(inPipeL->Remove(&lr)) {		
+		
 		++lc;
 		if (!lp->Append(&lr)) { 
 
+			cout << "page number :" << ++lpid << " Page Count "<< lp->getNumRecs() << endl;
+			lrc += lp->getNumRecs();
+			
 			trl->Consume(&lr);
 
+			Record lpr; vector <Record *> lrvec;
+			for (int i=0; i < lp->getNumRecs(); i++) {
+				lp->GetFirst(&lpr);
+				lrvec.push_back(&lpr);
+			}
+			rpid=0;
 			while (dbf.GetNext(rr)) {
 				if(!rp->Append(&rr)) { 
+					cout << "right page number :" << ++rpid << " Page Count "<< rp->getNumRecs() << endl;
 					trr->Consume(&rr);
-					MergePages(lp, rp, lom, rom);	
+					MergePages(lrvec, rp, lom, rom);	
 					rp = new Page();
 					rp->Append(trr);
 					trr = new Record();
@@ -184,7 +198,8 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 			}
 
 			if(rp->getNumRecs()) {
-				MergePages(lp, rp, lom, rom);
+				cout << "right page number :" << ++rpid << " Page Count "<< rp->getNumRecs() << endl;
+				MergePages(lrvec, rp, lom, rom);
 			}
 
 			dbf.MoveFirst();
@@ -196,11 +211,18 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 	}
 
 	if(lp->getNumRecs()) {
+		cout << "left page number :" << ++lpid << " Left Page Count "<< lp->getNumRecs() << endl;
+		lrc += lp->getNumRecs();
+		Record lpr; vector <Record *> lrvec;
+		for (int i=0; i < lp->getNumRecs(); i++) {
+			lp->GetFirst(&lpr);
+			lrvec.push_back(&lpr);
+		}
 		dbf.MoveFirst();
 		while (dbf.GetNext(rr)) {
 			if(!rp->Append(&rr)) { 
 				trr->Consume(&rr);
-				MergePages(lp, rp, lom, rom);	
+				MergePages(lrvec, rp, lom, rom);	
 				rp = new Page();
 				rp->Append(trr);
 				trr = new Record();
@@ -208,25 +230,35 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 		}
 
 		if(rp->getNumRecs()) {
-			MergePages(lp, rp, lom, rom);
+			MergePages(lrvec, rp, lom, rom);
 		}
 	}
+	cout << "left record count "  << lc << endl;
+	cout << "merge record count " << mc << endl;
+	cout << "----------------------------------------------" << endl;
+	cout << "processed record count "  << lrc << endl;
+	cout << "processed record count " << rrc << endl;
 
 	// empty pipes
 	while(inPipeL->Remove(&lr));
 	while(inPipeR->Remove(&rr));
 }
 
-void Join::MergePages(Page *lp, Page *rp, OrderMaker &lom, OrderMaker &rom) {
-	Record lpr, rpr;
+void Join::MergePages(vector <Record *> lrvec, Page *rp, OrderMaker &lom, OrderMaker &rom) {
+	
+	rrc += rp->getNumRecs();
+	
+	Record rpr;
 	ComparisonEngine ce;
-	while(lp->GetFirst(&lpr)) {
+
+	for (int i=0; i < lrvec.size(); i++) {
 		while(rp->GetFirst(&rpr)) {
-			if (ce.Compare(&lpr, &lom, &rpr, &rom)) {
-				cout << ++mc << endl;
-				MergeRecord(&lpr, &rpr);
+			if (!ce.Compare(lrvec[i], &lom, &rpr, &rom)) {
+				++mc;
+				MergeRecord(lrvec[i], &rpr);
 			}
 		}
+	
 	}
 }
 

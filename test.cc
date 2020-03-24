@@ -201,7 +201,7 @@ void q4 () {
 	T.Use_n_Pages (1);
 
 	SF_ps.Run (dbf_ps, _ps, cnf_ps, lit_ps); // 161 recs qualified
-	J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps);
+	J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps, *s->schema(), *ps->schema());
 	T.Run (_s_ps, _out, func);
 
 	SF_s.WaitUntilDone();
@@ -306,7 +306,7 @@ void q6 () {
 
 	SF_s.Run (dbf_s, _s, cnf_s, lit_s); // 10k recs qualified
 	SF_ps.Run (dbf_ps, _ps, cnf_ps, lit_ps); // 161 recs qualified
-	J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps);
+	//J.Run (_s, _ps, _s_ps, cnf_p_ps, lit_p_ps);
 	G.Run (_s_ps, _out, grp_order, func);
 
 	SF_s.WaitUntilDone();

@@ -79,14 +79,14 @@ class Join : public RelationalOp {
 	Record *literal;
 	Schema *ls, *rs;
 	int rl;
-	int mc=0;
+	int mc=0, lrc=0, rrc=0;
 	public:
-	void Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
+	void Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal, Schema &ls, Schema &rs);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
 	static void* caller(void*);
 	void *operation();
-	void MergePages(Page *lp, Page *rp, OrderMaker &lom, OrderMaker &rom);
+	void MergePages(vector<Record*> lrvec, Page *rp, OrderMaker &lom, OrderMaker &rom);
 	void MergeRecord(Record *lr, Record *rr);
 	void sortMergeJoin(Record lr,Record rr, Record m, OrderMaker &lom, OrderMaker &rom);
 	void blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, OrderMaker &rom);
