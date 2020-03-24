@@ -1,6 +1,7 @@
 #include "RelOp.h"
 #include<sstream>
 
+// vector for cleaning memory of a vector
 #define CLEANUPVECTOR(v) \
 	({ for(vector<Record *>::iterator it = v.begin(); it!=v.end(); it++) { \
 		if(!*it) { delete *it; } }\
@@ -17,9 +18,6 @@ void SelectFile::Run (DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal
 	pthread_create(&this->thread, NULL, caller, (void*)this);
 }
 void SelectFile::WaitUntilDone () {
-	// function shall suspend execution of the calling 
-	// thread until the target thread terminates, unless
-	// the target thread has already terminated
 	pthread_join (thread, NULL);
 }
 void SelectFile::Use_n_Pages (int runlen) {
@@ -30,15 +28,11 @@ void* SelectFile::caller(void *args) {
 }
 // function is called by the thread
 void* SelectFile::operation() {
-	int count=0;
-	// given that the file is open, move to first record
+	int count=0;Record rec;ComparisonEngine cmp;
 	inFile->MoveFirst();
-	Record rec;
-	ComparisonEngine cmp;
 	while(inFile->GetNext(rec)) {
 		if (cmp.Compare(&rec, literal, selOp)) {
-			outPipe->Insert(&rec);
-			++count;
+			outPipe->Insert(&rec);++count;
 		}
 	}
 	outPipe->ShutDown();
@@ -128,47 +122,50 @@ void* Join::operation() {
 	BigQ rq(*inPipeR, spr, rom, rl);
 	Record lr, rr, m;
 	
-	
-	// normal join
-	if(lom.getNumAtts()==rom.getNumAtts()!=0) {
-		bool le=spl.Remove(&lr); bool re=spr.Remove(&rr);
-		int c=0;int lc=1; int rc=1;
-		
-		while(le&&re) {
-			int v = ce.Compare(&lr,&lom, &rr, &rom);
-			if (v==-1)    { le=spl.Remove(&lr);lc++;}
-			else if(v==1) { re=spr.Remove(&rr);rc++;}
-			else {
-				vector<Record *> vl; vector <Record *> vr;
-				Record *pushlr  = new Record();  pushlr->Consume(&lr);  vl.push_back(pushlr);
-				Record *pushrr  = new Record();  pushrr->Consume(&rr);  vr.push_back(pushrr);
-				
-				le=spl.Remove(&lr);lc++;
-				while(le && (!ce.Compare(&lr,pushlr,&lom))) {
-					Record *tr = new Record(); tr->Consume(&lr); vl.push_back(tr);le=spl.Remove(&lr);lc++;
-				}
-
-				re=spr.Remove(&rr);rc++;
-				while(re &&(!ce.Compare(&rr,pushrr,&rom))) {
-					Record *tr = new Record(); tr->Consume(&rr); vr.push_back(tr);re=spr.Remove(&rr);rc++;
-				}
-				c++;
-				for(int i=0; i < vl.size(); i++){ 
-					for(int j=0; j< vr.size(); j++) {
-						MergeRecord(vl[i], vr[j]);
-					}
-				}
-				CLEANUPVECTOR(vl);CLEANUPVECTOR(vr);
-			}
-		}
-		
-	}
+	// sorted-merge join
+	if(lom.getNumAtts()==rom.getNumAtts()!=0) { sortMergeJoin(lr,rr,m,spl,spr,lom,rom,ce); } 
 	// block-nested join
 	else {}
 	while(spl.Remove(&lr)) {}
 	while(spr.Remove(&rr)) {}
 
 	outPipe->ShutDown();
+}
+
+void Join::sortMergeJoin(Record lr,Record rr, Record m, Pipe &spl, Pipe &spr, OrderMaker &lom, OrderMaker &rom, ComparisonEngine ce) {
+
+	bool le=spl.Remove(&lr); bool re=spr.Remove(&rr);int c=0;int lc=1; int rc=1;
+	while(le&&re) {
+		int v = ce.Compare(&lr,&lom, &rr, &rom);
+		if (v==-1)    { le=spl.Remove(&lr);lc++;}
+		else if(v==1) { re=spr.Remove(&rr);rc++;}
+		else {
+			c++;
+			vector<Record *> vl; vector <Record *> vr;
+			Record *pushlr  = new Record();  pushlr->Consume(&lr);  vl.push_back(pushlr);
+			Record *pushrr  = new Record();  pushrr->Consume(&rr);  vr.push_back(pushrr);
+
+			le=spl.Remove(&lr);lc++;
+			while(le && (!ce.Compare(&lr,pushlr,&lom))) {
+				Record *tr = new Record(); tr->Consume(&lr); vl.push_back(tr);le=spl.Remove(&lr);lc++;
+			}
+
+			re=spr.Remove(&rr);rc++;
+			while(re &&(!ce.Compare(&rr,pushrr,&rom))) {
+				Record *tr = new Record(); tr->Consume(&rr); vr.push_back(tr);re=spr.Remove(&rr);rc++;
+			}
+			
+			for(int i=0; i < vl.size(); i++){ for(int j=0; j< vr.size(); j++) { MergeRecord(vl[i], vr[j]); }}
+			CLEANUPVECTOR(vl);CLEANUPVECTOR(vr);
+		}
+	}
+}
+
+void Join::blockNestedJoin() {
+
+	
+
+
 }
 
 void Join::MergeRecord(Record *lr, Record *rr) {
@@ -182,6 +179,7 @@ void Join::MergeRecord(Record *lr, Record *rr) {
 	delete atts;
 	return;
 }
+
 //------------------------------------------------------------------------------------------------
 void DuplicateRemoval::Run (Pipe &inPipe, Pipe &outPipe, Schema &mySchema) { 
 	this->inPipe = &inPipe;
@@ -193,26 +191,30 @@ void DuplicateRemoval::WaitUntilDone () {
 	pthread_join (thread, NULL);
 }
 void DuplicateRemoval::Use_n_Pages (int n) { 
-	this->runlength = n;
+	this->rl = n;
 }
 void* DuplicateRemoval::caller(void *args) {
 	((DuplicateRemoval*)args)->operation();
 }
 // function is called by the thread
 void* DuplicateRemoval::operation() {
-	OrderMaker om(mySchema); 
-	Pipe *sp = new Pipe(100);
-	Record pr, cr;
-	BigQ sq(*inPipe, *sp, om, runlength);
-	ComparisonEngine ce;
+
+	// initialize
+	OrderMaker om(mySchema); ComparisonEngine ce;
+	Record pr, cr;Pipe *sp = new Pipe(100);
+	BigQ sq(*inPipe, *sp, om, rl);
+	
+	// remove duplicates
 	sp->Remove(&pr);
 	while(sp->Remove(&cr)) {
 		if(!ce.Compare(&pr, &cr, &om)) continue;
-		outPipe->Insert(&pr);
-		pr.Consume(&cr);
+		outPipe->Insert(&pr);pr.Consume(&cr);
 	}
+
+	// insert and shut
 	outPipe->Insert(&pr);outPipe->ShutDown();
 }
+
 //------------------------------------------------------------------------------------------------
 void Sum::Run (Pipe &inPipe, Pipe &outPipe, Function &computeMe) { 
 	this->inPipe = &inPipe;
@@ -271,8 +273,8 @@ void* GroupBy::operation() {
 
 	Pipe sp(1000);BigQ bq(*inPipe,sp,*groupAtts,rl);
 	Record *gr = new Record(),*pr=new Record(),*cr=NULL;
-	int ir,si;double dr,sd;Type rt;
-	ComparisonEngine ce;bool grchng=false,pe = false;
+	int ir,si;double dr,sd;Type rt; ComparisonEngine ce;
+	bool grchng=false,pe = false;
 
 	// defensive check
 	if(!sp.Remove(pr)) { outPipe->ShutDown(); return 0; }
@@ -296,20 +298,16 @@ void* GroupBy::operation() {
 		Record *op = new Record();
 		if(rt==Double) {
 			Attribute a = {(char*)"sum", Double};Schema ss((char*)"somefile",1,&a);
-			char sstr[30];sprintf(sstr, "%f|", sd);
-			op->ComposeRecord(&ss,sstr);
+			char sstr[30];sprintf(sstr, "%f|", sd); op->ComposeRecord(&ss,sstr);
 		}
 		if (rt==Int) {
 			Attribute att = {(char*)"sum", Int};Schema ss((char*)"somefile",1,&att);
-			char sstr[30];sprintf(sstr, "%d|", si);
-			op->ComposeRecord(&ss,sstr);            
+			char sstr[30];sprintf(sstr, "%d|", si); op->ComposeRecord(&ss,sstr);
 		}
 
 		Record rr;
 		int nsatt = groupAtts->numAtts+1; int satt[nsatt]; satt[0]=0;
-		for(int i=1;i<nsatt;i++) {
-			satt[i]=groupAtts->whichAtts[i-1];
-		}
+		for(int i=1;i<nsatt;i++) { satt[i]=groupAtts->whichAtts[i-1]; }
 		rr.MergeRecords(op,gr,1,nsatt-1,satt,nsatt,1);
 		outPipe->Insert(&rr);
 	}
@@ -336,9 +334,9 @@ void* WriteOut::caller(void *args) {
 }
 
 // function is called by the thread
+// function similar to record.Print()
 void* WriteOut::operation() {
 	
-	// reference taken from Record.print()
 	Record rec; int cnt=0;
 	int n = mySchema->GetNumAtts();
 	Attribute *atts = mySchema->GetAtts();
@@ -356,25 +354,16 @@ void* WriteOut::operation() {
 			// depending on the type we then print out the contents
 
 			// first is integer
-			if (atts[i].myType == Int) {
-				char *myInt = (char *) &(rec.bits[pointer]);
-				fprintf(outFile,"%d",myInt);
+			if (atts[i].myType == Int) { char *myInt = (char *) &(rec.bits[pointer]); fprintf(outFile,"%d",myInt);}
 
 			// then is a double
-			} else if (atts[i].myType == Double) {
-				char *myDouble = (char *) &(rec.bits[pointer]);
-				fprintf(outFile,"%f",myDouble);	
+			else if (atts[i].myType == Double) { char *myDouble = (char *) &(rec.bits[pointer]); fprintf(outFile,"%f",myDouble);}
 
 			// then is a character string
-			} else if (atts[i].myType == String) {
-				char *myString = (char *) &(rec.bits[pointer]);
-				fprintf(outFile,"%s",myString);	
-			} 
+			else if (atts[i].myType == String) { char *myString = (char *) &(rec.bits[pointer]); fprintf(outFile,"%s",myString);} 
 
 			// print out a comma as needed to make things pretty
-			if (i != n - 1) {
-				fprintf(outFile,"%s","|");	
-			}
+			if (i != n - 1) { fprintf(outFile,"%s","|"); }
 		}
 		fprintf(outFile,"%s","\n");
 	}

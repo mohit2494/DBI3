@@ -5,7 +5,6 @@
  heap files dir: 	dbfiles/
  
 
-SF :21
 ps_partkey: [20468], ps_suppkey: [469], ps_availqty: [6884], ps_supplycost: [1], ps_comment: [furiously among the slyly ironic instructions. final, unusual packages wake slyly. final accounts cajole. deposits above the i]
 ps_partkey: [43172], ps_suppkey: [685], ps_availqty: [6600], ps_supplycost: [1.01], ps_comment: [ites integrate blithely above the slyly regular instructions. asymptotes besides the regular, even accounts haggle carefully slyly bold requests. even pinto beans ]
 ps_partkey: [60953], ps_suppkey: [954], ps_availqty: [8611], ps_supplycost: [1.01], ps_comment: [ully even dolphins wake carefully about the slyly final pinto beans]
@@ -40,7 +39,6 @@ ps_partkey: [139711], ps_suppkey: [9712], ps_availqty: [4286], ps_supplycost: [1
  heap files dir: 	dbfiles/
  
 
-SF :12
 int: [31], string: [slate seashell steel medium moccasin], double: [931.03]
 int: [1030], string: [orange floral olive ivory lace], double: [931.03]
 int: [2029], string: [midnight brown dim violet almond], double: [931.02]
@@ -66,7 +64,6 @@ int: [11020], string: [plum khaki powder beige peru], double: [931.02]
  heap files dir: 	dbfiles/
  
 
-SF :10000
 double: [9.24623e+07]
 
 
@@ -82,8 +79,6 @@ double: [9.24623e+07]
  
 
  query4 
-SF :10000
-SF :800000
 double: [4.00421e+08]
  query4 returned 1 recs 
 
@@ -96,7 +91,6 @@ double: [4.00421e+08]
  heap files dir: 	dbfiles/
  
 
-SF :79080
  query5 finished..output written to file ps.w.tmp
 
 

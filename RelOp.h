@@ -86,6 +86,8 @@ class Join : public RelationalOp {
 	static void* caller(void*);
 	void *operation();
 	void MergeRecord(Record *lr, Record *rr);
+	void sortMergeJoin(Record lr,Record rr, Record m, Pipe &spl, Pipe &spr, OrderMaker &lom, OrderMaker &rom, ComparisonEngine ce);
+	void blockNestedJoin();
 };
 
 //-------------------------------------------------------------------------------------
@@ -95,7 +97,7 @@ class DuplicateRemoval : public RelationalOp {
 	Pipe *inPipe;
 	Pipe *outPipe;
 	Schema *mySchema;
-	int runlength;
+	int rl;
 	public:
 	void Run (Pipe &inPipe, Pipe &outPipe, Schema &mySchema);
 	void WaitUntilDone ();

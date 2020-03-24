@@ -1,6 +1,5 @@
 #include "BigQ.h"
 #include "Utilities.h"
-#include <string.h>
 using namespace std;
 
 // ------------------------------------------------------------------
@@ -99,13 +98,7 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen) {
     myThreadData.sortorder = &sortorder;
     myThreadData.runlen = runlen;
     myTree=NULL;
-    
- 
-    string str("temp_" + to_string(Utilities::getNextCounter()) +".xbin");
-    char *cstr = new char[str.length() + 1];
-    strcpy(cstr, str.c_str());
-    this->f_path = cstr;
-    
+    this->f_path = Utilities::newRandomFileName(".xbin");
     pthread_create(&myThread, NULL, BigQ::Driver,this);
     //pthread_join(myThread, NULL);
     //out.ShutDown ();
