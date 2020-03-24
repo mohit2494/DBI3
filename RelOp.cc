@@ -174,7 +174,7 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 		
 		++lc;
 		if (!lp->Append(&lr)) { 
-
+			cout << endl << "------------" << endl;
 			cout << "page number :" << ++lpid << " Page Count "<< lp->getNumRecs() << endl;
 			lrc += lp->getNumRecs();
 			
@@ -188,8 +188,11 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 			rpid=0;
 			while (dbf.GetNext(rr)) {
 				if(!rp->Append(&rr)) { 
-					cout << "right page number :" << ++rpid << " Page Count "<< rp->getNumRecs() << endl;
+					if (++rpid%100==0) {
+						cout << "right page number :" << rpid << " Page Count "<< rp->getNumRecs() << endl;
+					}
 					trr->Consume(&rr);
+					rrc += rp->getNumRecs();
 					MergePages(lrvec, rp, lom, rom);	
 					rp = new Page();
 					rp->Append(trr);
@@ -198,7 +201,11 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 			}
 
 			if(rp->getNumRecs()) {
-				cout << "right page number :" << ++rpid << " Page Count "<< rp->getNumRecs() << endl;
+				rrc += rp->getNumRecs();
+				if (++rpid%100==0) {
+					cout << "right page number :" << rpid << " Page Count "<< rp->getNumRecs() << endl;
+				}
+				
 				MergePages(lrvec, rp, lom, rom);
 			}
 
@@ -207,7 +214,6 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 			if (sizeof(trl->bits)) {lp->Append(trl);}
 			trl=new Record();
 		}
-
 	}
 
 	if(lp->getNumRecs()) {
@@ -245,8 +251,6 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 }
 
 void Join::MergePages(vector <Record *> lrvec, Page *rp, OrderMaker &lom, OrderMaker &rom) {
-	
-	rrc += rp->getNumRecs();
 	
 	Record rpr;
 	ComparisonEngine ce;
