@@ -257,7 +257,7 @@ void Join::MergePages(vector <Record *> lrvec, Page *rp, OrderMaker &lom, OrderM
 
 	for (int i=0; i < lrvec.size(); i++) {
 		while(rp->GetFirst(&rpr)) {
-			if (!ce.Compare(lrvec[i], &lom, &rpr, &rom)) {
+			if (!ce.Compare(lrvec[i],&rpr,selOp)) {
 				++mc;
 				MergeRecord(lrvec[i], &rpr);
 			}
