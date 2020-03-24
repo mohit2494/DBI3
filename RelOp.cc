@@ -188,11 +188,12 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 			rpid=0;
 			while (dbf.GetNext(rr)) {
 				if(!rp->Append(&rr)) { 
+					rrc += rp->getNumRecs();
 					if (++rpid%100==0) {
-						cout << "right page number :" << rpid << " Page Count "<< rp->getNumRecs() << endl;
+						cout << "right page number :" << rpid << " Page Count "<< rrc << endl;
 					}
 					trr->Consume(&rr);
-					rrc += rp->getNumRecs();
+					
 					MergePages(lrvec, rp, lom, rom);	
 					rp = new Page();
 					rp->Append(trr);
@@ -203,7 +204,7 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 			if(rp->getNumRecs()) {
 				rrc += rp->getNumRecs();
 				if (++rpid%100==0) {
-					cout << "right page number :" << rpid << " Page Count "<< rp->getNumRecs() << endl;
+					cout << "right page number :" << rpid << " Page Count "<< rrc << endl;
 				}
 				
 				MergePages(lrvec, rp, lom, rom);
@@ -217,6 +218,7 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 	}
 
 	if(lp->getNumRecs()) {
+		cout << endl << "------------" << endl;
 		cout << "left page number :" << ++lpid << " Left Page Count "<< lp->getNumRecs() << endl;
 		lrc += lp->getNumRecs();
 		Record lpr; vector <Record *> lrvec;
@@ -226,7 +228,12 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 		}
 		dbf.MoveFirst();
 		while (dbf.GetNext(rr)) {
-			if(!rp->Append(&rr)) { 
+			if(!rp->Append(&rr)) {
+				rrc += rp->getNumRecs();
+				if (++rpid%100==0) {
+					cout << "right page number :" << rpid << " Page Count "<< rrc << endl;
+				}
+				
 				trr->Consume(&rr);
 				MergePages(lrvec, rp, lom, rom);	
 				rp = new Page();
@@ -236,9 +243,14 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 		}
 
 		if(rp->getNumRecs()) {
+			rrc += rp->getNumRecs();
+			if (++rpid%100==0) {
+					cout << "right page number :" << rpid << " Page Count "<< rrc << endl;
+				}
 			MergePages(lrvec, rp, lom, rom);
 		}
 	}
+	cout << endl << endl;
 	cout << "left record count "  << lc << endl;
 	cout << "merge record count " << mc << endl;
 	cout << "----------------------------------------------" << endl;
