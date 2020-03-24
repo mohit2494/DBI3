@@ -79,15 +79,17 @@ class Join : public RelationalOp {
 	Record *literal;
 	Schema *ls, *rs;
 	int rl;
+	int mc=0;
 	public:
 	void Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
 	static void* caller(void*);
 	void *operation();
+	void MergePages(Page *lp, Page *rp, OrderMaker &lom, OrderMaker &rom);
 	void MergeRecord(Record *lr, Record *rr);
-	void sortMergeJoin(Record lr,Record rr, Record m, Pipe &spl, Pipe &spr, OrderMaker &lom, OrderMaker &rom, ComparisonEngine ce);
-	void blockNestedJoin();
+	void sortMergeJoin(Record lr,Record rr, Record m, OrderMaker &lom, OrderMaker &rom);
+	void blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, OrderMaker &rom);
 };
 
 //-------------------------------------------------------------------------------------

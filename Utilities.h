@@ -13,12 +13,8 @@ class Utilities {
     
         // check if file exists already at the given file path
         static int checkfileExist (const std::string& name) {
-            if (FILE *file = fopen(name.c_str(), "r")) {
-                fclose(file);
-                return 1;
-            } else {
-                return 0;
-            }   
+            if (FILE *file = fopen(name.c_str(), "r")) { fclose(file); return 1; }  
+            else { return 0; }   
         }
 
         // get's a unique random int counter value
@@ -40,6 +36,7 @@ class Utilities {
 
         // returns a char* new random file name with given extension
         static char* newRandomFileName(char* extension) {
+            if ((extension == NULL) || (extension[0] == '\0')) { extension=""; }
             string str("temp_" + to_string(Utilities::getNextCounter()) + extension);
             char *cstr = new char[str.length() + 1];
             strcpy(cstr, str.c_str());
