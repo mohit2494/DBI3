@@ -77,11 +77,9 @@ class Join : public RelationalOp {
 	Pipe *outPipe;
 	CNF *selOp;
 	Record *literal;
-	Schema *ls, *rs;
-	int rl;
-	int mc=0, lrc=0, rrc=0;
+	int rl, mc=0, lrc=0, rrc=0;
 	public:
-	void Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal, Schema &ls, Schema &rs);
+	void Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
 	static void* caller(void*);

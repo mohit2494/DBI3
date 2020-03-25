@@ -82,14 +82,12 @@ void* Project::operation() {
 }
 //------------------------------------------------------------------------------------------------
 
-void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal, Schema &ls, Schema &rs) { 
+void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal) { 
 	this->inPipeL = &inPipeL;
 	this->inPipeR = &inPipeR;
 	this->outPipe = &outPipe;
 	this->selOp = &selOp;
 	this->literal = &literal;
-	this->ls = &ls;
-	this->rs = &rs;
 
 	pthread_create(&thread, NULL, caller, (void *)this);
 
