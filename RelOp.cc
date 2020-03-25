@@ -497,38 +497,44 @@ void* WriteOut::caller(void *args) { ((WriteOut*)args)->operation(); }
 
 // function similar to record.Print()
 void* WriteOut::operation() {
+    Record t;
+    long rc=0;
+    // loop through all of the attributes
+    int n = mySchema->GetNumAtts();
+    Attribute *atts = mySchema->GetAtts();
+    while (inPipe->Remove(&t) )
+    {
+        rc++;
+        // loop through all of the attributes
+        for (int i = 0; i < n; i++) {
 
-	Record rec; int cnt=0;
-	int n = mySchema->GetNumAtts();
-	Attribute *atts = mySchema->GetAtts();
-		
-	while(inPipe->Remove(&rec)) {
-		cnt++;
-		// loop through all of the attributes
-		for (int i = 0; i < n; i++) {
+            fprintf(outFile,"%s: ",atts[i].name);
+            int pointer = ((int *) t.bits)[i + 1];
+            
+            if (atts[i].myType == Int)
+            {
+                int *mi = (int *) &(t.bits[pointer]);
+                fprintf(outFile,"%d",*mi);
 
-			// use the i^th slot at the head of the record to get the
-			// offset to the correct attribute in the record
-			int pointer = ((int *) rec.bits)[i + 1];
+            }
+            else if (atts[i].myType == Double)
+            {
+                double *md = (double *) &(t.bits[pointer]);
+                fprintf(outFile,"%f",*md);
+            }
+            else if (atts[i].myType == String)
+            {
+                char *ms = (char *) &(t.bits[pointer]);
+                fprintf(outFile,"%s",ms);
+            }
 
-			// here we determine the type, which given in the schema;
-			// depending on the type we then print out the contents
-
-			// first is integer
-			if (atts[i].myType == Int) { char *myInt = (char *) &(rec.bits[pointer]); fprintf(outFile,"%d",myInt);}
-
-			// then is a double
-			else if (atts[i].myType == Double) { char *myDouble = (char *) &(rec.bits[pointer]); fprintf(outFile,"%f",myDouble);}
-
-			// then is a character string
-			else if (atts[i].myType == String) { char *myString = (char *) &(rec.bits[pointer]); fprintf(outFile,"%s",myString);} 
-
-			// print out a comma as needed to make things pretty
-			if (i != n - 1) { fprintf(outFile,"%s","|"); }
-		}
-		fprintf(outFile,"%s","\n");
-	}
-	fclose(outFile);
-	//cerr << " number of records written "<<cnt<<endl;
+            if (i != n - 1) {
+                fprintf(outFile,"%c",'|');
+            }
+        }
+        fprintf(outFile,"%c",'\n');
+    }
+    fclose(outFile);
+    cout<<"\n Number of records written to output file : "<<rc<<"\n";
 }
 
