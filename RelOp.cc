@@ -191,59 +191,48 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 //    int pmc = 0;
 	while(inPipeL->Remove(&lr)) {
 		++lc;
-		if (!lp->Append(&lr)) {
-//			cout << "page number :" << ++lpid << " Page Count "<< lp->getNumRecs() << endl;
-            
-			Record * lpr; vector <Record *> lrvec;
-            lpr = new Record();
-            
-            while(lp->GetFirst(lpr)){
-				lrvec.push_back(lpr);
-                lpr = new Record();
+		if (!lp->Append(&lr)) { 
+			cout << endl << "------------" << endl;
+			cout << "page number :" << ++lpid << " Page Count "<< lp->getNumRecs() << endl;
+			lrc += lp->getNumRecs();
+			
+			trl->Consume(&lr);
+
+			Record lpr; vector <Record *> lrvec;
+			for (int i=0; i < lp->getNumRecs(); i++) {
+				lp->GetFirst(&lpr);
+				lrvec.push_back(&lpr);
 			}
-            
-            if (sizeof(lr.bits)) {
-                lrvec.push_back(&lr);
-            }
-            
-//            cout<<lrvec.size()<<" ex: "<<lrvec.size()*80<<endl;
-            lrc += lrvec.size();
-            
-            Record * rpr; vector <Record *> rrvec;
-            rpr = new Record();
-            
-            while (dbf.GetNext(rr)) {
+			rpid=0;
+			while (dbf.GetNext(rr)) {
+				if(!rp->Append(&rr)) { 
+					rrc += rp->getNumRecs();
+					if (++rpid%100==0) {
+						cout << "right page number :" << rpid << " Page Count "<< rrc << endl;
+					}
+					trr->Consume(&rr);
+					
+					MergePages(lrvec, rp, lom, rom);	
+					rp = new Page();
+					rp->Append(trr);
+					trr = new Record();
+				}
+			}
 
-                ++rrc;
-                if(!rp->Append(&rr)) {
-                    //                    cout << "page number :" << " Page Count "<< rp->getNumRecs() << endl;
-                    while(rp->GetFirst(rpr)){
-                        rrvec.push_back(rpr);
-                        rpr = new Record();
-                    }
-                    if (sizeof(rr.bits)) {
-                        rrvec.push_back(&rr);
-                    }
-                    //                    cout<<rrvec.size()<<endl;
-                    for (int i=0; i < lrvec.size(); i++) {
-                        for ( int j=0; j < rrvec.size();j++){
-                            if (ce.Compare(lrvec[i], rrvec[j],literal, selOp)) {
-                                ++mc;
-                                MergeRecord(lrvec[i], rrvec[j]);
-                            }
-                        }
-                    }
-                    CLEANUPVECTOR(rrvec);
-                }
-            }
-            
-//            cout<<"Merges: "<<mc-pmc<<" total:"<<mc<<endl;
-//            pmc=mc;
-            dbf.MoveFirst();
-            CLEANUPVECTOR(lrvec);
+			if(rp->getNumRecs()) {
+				rrc += rp->getNumRecs();
+				if (++rpid%100==0) {
+					cout << "right page number :" << rpid << " Page Count "<< rrc << endl;
+				}
+				
+				MergePages(lrvec, rp, lom, rom);
+			}
+
+			dbf.MoveFirst();
+			lp=new Page();
+			if (sizeof(trl->bits)) {lp->Append(trl);}
+			trl=new Record();
 		}
-
-
 	}
     if(lp->getNumRecs()){
         dbf.MoveFirst();
@@ -304,11 +293,45 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
         cerr<< "Error deleting file" ;
     }
 
-//	cout << "left record count "  << lc << endl;
-//	cout << "merge record count " << mc << endl;
-//	cout << "----------------------------------------------" << endl;
-//	cout << "processed record count "  << lrc << endl;
-//	cout << "processed record count " << rrc << endl;
+	if(lp->getNumRecs()) {
+		cout << endl << "------------" << endl;
+		cout << "left page number :" << ++lpid << " Left Page Count "<< lp->getNumRecs() << endl;
+		lrc += lp->getNumRecs();
+		Record lpr; vector <Record *> lrvec;
+		for (int i=0; i < lp->getNumRecs(); i++) {
+			lp->GetFirst(&lpr);
+			lrvec.push_back(&lpr);
+		}
+		dbf.MoveFirst();
+		while (dbf.GetNext(rr)) {
+			if(!rp->Append(&rr)) {
+				rrc += rp->getNumRecs();
+				if (++rpid%100==0) {
+					cout << "right page number :" << rpid << " Page Count "<< rrc << endl;
+				}
+				
+				trr->Consume(&rr);
+				MergePages(lrvec, rp, lom, rom);	
+				rp = new Page();
+				rp->Append(trr);
+				trr = new Record();
+			}
+		}
+
+		if(rp->getNumRecs()) {
+			rrc += rp->getNumRecs();
+			if (++rpid%100==0) {
+					cout << "right page number :" << rpid << " Page Count "<< rrc << endl;
+				}
+			MergePages(lrvec, rp, lom, rom);
+		}
+	}
+	cout << endl << endl;
+	cout << "left record count "  << lc << endl;
+	cout << "merge record count " << mc << endl;
+	cout << "----------------------------------------------" << endl;
+	cout << "processed record count "  << lrc << endl;
+	cout << "processed record count " << rrc << endl;
 
 	// empty pipes
 	while(inPipeL->Remove(&lr));
@@ -317,14 +340,12 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 
 void Join::MergePages(vector <Record *> lrvec, Page *rp, OrderMaker &lom, OrderMaker &rom) {
 	
-	rrc += rp->getNumRecs();
-	
 	Record rpr;
 	ComparisonEngine ce;
 
 	for (int i=0; i < lrvec.size(); i++) {
 		while(rp->GetFirst(&rpr)) {
-			if (!ce.Compare(lrvec[i], &lom, &rpr, &rom)) {
+			if (!ce.Compare(lrvec[i],&rpr,selOp)) {
 				++mc;
 				MergeRecord(lrvec[i], &rpr);
 			}
