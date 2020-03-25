@@ -88,7 +88,6 @@ void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record 
 	this->outPipe = &outPipe;
 	this->selOp = &selOp;
 	this->literal = &literal;
-
 	pthread_create(&thread, NULL, caller, (void *)this);
 
 }

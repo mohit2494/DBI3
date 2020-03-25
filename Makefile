@@ -134,4 +134,8 @@ clean:
 	rm -f yyfunc.tab.*
 	rm -f lex.yy.*
 	rm -f lex.yyfunc*
-
+	rm -f *.xbin
+	rm -f dbfiles/*.bin
+	rm -f dbfiles/*.bigq
+	rm -f dbfiles/*.pref
+	
