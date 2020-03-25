@@ -81,6 +81,7 @@ void* Project::operation() {
 	outPipe->ShutDown();
 }
 //------------------------------------------------------------------------------------------------
+
 void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal, Schema &ls, Schema &rs) { 
 	this->inPipeL = &inPipeL;
 	this->inPipeR = &inPipeR;
@@ -107,10 +108,10 @@ void* Join::operation() {
 	selOp->GetSortOrders(lom,rom);
 	
 	// // sorted-merge join or block-nested join
-	// if(lom.getNumAtts()==rom.getNumAtts()!=0) { sortMergeJoin(lr,rr,m,lom,rom); } 
-	// else { 
+	 if(lom.getNumAtts()==rom.getNumAtts()!=0) { sortMergeJoin(lr,rr,m,lom,rom); }
+	 else {
 		blockNestedJoin(lr,rr,m,lom,rom); 
-	// }
+	 }
 
 	//shutdown pipe
 	outPipe->ShutDown();
@@ -160,84 +161,154 @@ void Join::blockNestedJoin(Record lr,Record rr, Record m, OrderMaker &lom, Order
 	ComparisonEngine ce; Record r, *trl, *trr; int c=0, lc=0, rc=0; Page *lp, *rp; 
 
 	// create dbfile; fill dbfile; move to first record
-	DBFile dbf; dbf.Create(Utilities::newRandomFileName(".bin"), heap, NULL);
-	while(inPipeR->Remove(&r)) { ++c; dbf.Add(r); } cout << "right file: " << c << endl;
+	DBFile dbf;
+    char * fileName = Utilities::newRandomFileName(".bin");
+    
+    dbf.Create(fileName, heap, NULL);
+	while(inPipeR->Remove(&r)) {
+        ++c;
+        dbf.Add(r);
+    }
+    dbf.Close();
+    
+    // file reopened and ready to read.
+    dbf.Open(fileName);
+    dbf.MoveFirst();
+
+//    cout << "right file: " << c << endl;
 
 	// if empty right pipe
-	if (!c) { while(inPipeL->Remove(&lr)); return; } 
-	c=0;
-	dbf.MoveFirst();
-	lp = new Page(); rp = new Page();
-	trl = new Record(); trr = new Record();
-	int lpid=0, rpid=0;
-	while(inPipeL->Remove(&lr)) {		
-		
+	if (!c) {
+        while(inPipeL->Remove(&lr));
+        return;
+    }
+    
+//  Variable For Block Merge
+	lp = new Page();
+    rp = new Page();
+	trl = new Record();
+    trr = new Record();
+//    int pmc = 0;
+	while(inPipeL->Remove(&lr)) {
 		++lc;
-		if (!lp->Append(&lr)) { 
-
-			cout << "page number :" << ++lpid << " Page Count "<< lp->getNumRecs() << endl;
-			lrc += lp->getNumRecs();
-			
-			trl->Consume(&lr);
-
-			Record lpr; vector <Record *> lrvec;
-			for (int i=0; i < lp->getNumRecs(); i++) {
-				lp->GetFirst(&lpr);
-				lrvec.push_back(&lpr);
+		if (!lp->Append(&lr)) {
+//			cout << "page number :" << ++lpid << " Page Count "<< lp->getNumRecs() << endl;
+            
+			Record * lpr; vector <Record *> lrvec;
+            lpr = new Record();
+            
+            while(lp->GetFirst(lpr)){
+				lrvec.push_back(lpr);
+                lpr = new Record();
 			}
-			rpid=0;
-			while (dbf.GetNext(rr)) {
-				if(!rp->Append(&rr)) { 
-					cout << "right page number :" << ++rpid << " Page Count "<< rp->getNumRecs() << endl;
-					trr->Consume(&rr);
-					MergePages(lrvec, rp, lom, rom);	
-					rp = new Page();
-					rp->Append(trr);
-					trr = new Record();
-				}
-			}
+            
+            if (sizeof(lr.bits)) {
+                lrvec.push_back(&lr);
+            }
+            
+//            cout<<lrvec.size()<<" ex: "<<lrvec.size()*80<<endl;
+            lrc += lrvec.size();
+            
+            Record * rpr; vector <Record *> rrvec;
+            rpr = new Record();
+            
+            while (dbf.GetNext(rr)) {
 
-			if(rp->getNumRecs()) {
-				cout << "right page number :" << ++rpid << " Page Count "<< rp->getNumRecs() << endl;
-				MergePages(lrvec, rp, lom, rom);
-			}
-
-			dbf.MoveFirst();
-			lp=new Page();
-			if (sizeof(trl->bits)) {lp->Append(trl);}
-			trl=new Record();
+                ++rrc;
+                if(!rp->Append(&rr)) {
+                    //                    cout << "page number :" << " Page Count "<< rp->getNumRecs() << endl;
+                    while(rp->GetFirst(rpr)){
+                        rrvec.push_back(rpr);
+                        rpr = new Record();
+                    }
+                    if (sizeof(rr.bits)) {
+                        rrvec.push_back(&rr);
+                    }
+                    //                    cout<<rrvec.size()<<endl;
+                    for (int i=0; i < lrvec.size(); i++) {
+                        for ( int j=0; j < rrvec.size();j++){
+                            if (ce.Compare(lrvec[i], rrvec[j],literal, selOp)) {
+                                ++mc;
+                                MergeRecord(lrvec[i], rrvec[j]);
+                            }
+                        }
+                    }
+                    CLEANUPVECTOR(rrvec);
+                }
+            }
+            
+//            cout<<"Merges: "<<mc-pmc<<" total:"<<mc<<endl;
+//            pmc=mc;
+            dbf.MoveFirst();
+            CLEANUPVECTOR(lrvec);
 		}
+
 
 	}
+    if(lp->getNumRecs()){
+        dbf.MoveFirst();
+//        cout << "page number :" << ++lpid << " Page Count "<< lp->getNumRecs() << endl;
+        Record * lpr; vector <Record *> lrvec;
+        lpr = new Record();
+        while(lp->GetFirst(lpr)){
+            lrvec.push_back(lpr);
+            lpr = new Record();
+        }
+//        cout<<lrvec.size()<<" ex : "<<lrvec.size()*80<<endl;
+        lrc += lrvec.size();
+        Record * rpr; vector <Record *> rrvec;
+        rpr = new Record();
+        while (dbf.GetNext(rr)) {
+            ++rrc;
+            if(!rp->Append(&rr)) {
+                 while(rp->GetFirst(rpr)){
+                     rrvec.push_back(rpr);
+                     rpr = new Record();
+                 }
+                
+                 if (sizeof(rr.bits)) {
+                     rrvec.push_back(&rr);
+                 }
+                for (int i=0; i < lrvec.size(); i++) {
+                    for ( int j=0; j < rrvec.size();j++){
+                            if (ce.Compare(lrvec[i], rrvec[j],literal, selOp)) {
+                                ++mc;
+                                MergeRecord(lrvec[i], rrvec[j]);
+                            }
+                    }
+                }
+                CLEANUPVECTOR(rrvec);
+                
+            }
+        }
+//        cout<<"Merges: "<<mc-pmc<<" total:"<<mc<<endl;
+//        pmc=mc;
+        dbf.MoveFirst();
+        CLEANUPVECTOR(lrvec);
+        
+    }
+    
+    dbf.Close();
+    
+    if(Utilities::checkfileExist(fileName)) {
+        if( remove(fileName) != 0 )
+        cerr<< "Error deleting file" ;
+    }
+    string s(fileName);
+    string news = s.substr(0,s.find_last_of('.'))+".pref";
+    char * finalString = new char[news.length()+1];
+    strcpy(finalString, news.c_str());
+    
+    if(Utilities::checkfileExist(finalString)) {
+        if( remove(finalString) != 0 )
+        cerr<< "Error deleting file" ;
+    }
 
-	if(lp->getNumRecs()) {
-		cout << "left page number :" << ++lpid << " Left Page Count "<< lp->getNumRecs() << endl;
-		lrc += lp->getNumRecs();
-		Record lpr; vector <Record *> lrvec;
-		for (int i=0; i < lp->getNumRecs(); i++) {
-			lp->GetFirst(&lpr);
-			lrvec.push_back(&lpr);
-		}
-		dbf.MoveFirst();
-		while (dbf.GetNext(rr)) {
-			if(!rp->Append(&rr)) { 
-				trr->Consume(&rr);
-				MergePages(lrvec, rp, lom, rom);	
-				rp = new Page();
-				rp->Append(trr);
-				trr = new Record();
-			}
-		}
-
-		if(rp->getNumRecs()) {
-			MergePages(lrvec, rp, lom, rom);
-		}
-	}
-	cout << "left record count "  << lc << endl;
-	cout << "merge record count " << mc << endl;
-	cout << "----------------------------------------------" << endl;
-	cout << "processed record count "  << lrc << endl;
-	cout << "processed record count " << rrc << endl;
+//	cout << "left record count "  << lc << endl;
+//	cout << "merge record count " << mc << endl;
+//	cout << "----------------------------------------------" << endl;
+//	cout << "processed record count "  << lrc << endl;
+//	cout << "processed record count " << rrc << endl;
 
 	// empty pipes
 	while(inPipeL->Remove(&lr));
